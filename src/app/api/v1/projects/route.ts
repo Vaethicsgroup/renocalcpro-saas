@@ -1,0 +1,117 @@
+// app/api/v1/projects/route.ts — GET (list) + POST (create).
+import { NextRequest } from "next/server";
+import { authenticateApiRequest, apiError, apiJson, corsPreflight } from "@/lib/api/auth";
+import { prisma } from "@/lib/db/client";
+import { enforceQuota, PaywallError } from "@/lib/features/canUse";
+import { emitWebhookEvent } from "@/lib/webhooks/dispatch";
+import { enforceProjectCreationGate } from "@/server/billing/projectCreationGate";
+
+export async function OPTIONS(req: NextRequest) {
+  return corsPreflight(req);
+}
+
+export async function GET(req: NextRequest) {
+  const result = await authenticateApiRequest(req, "BASIC");
+  if (!result.ok) return apiError(result.status, result.error, result.details);
+
+  const url = req.nextUrl;
+  const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
+  const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get("pageSize") ?? "20")));
+  const status = url.searchParams.get("status") ?? undefined;
+
+  const where = {
+    organizationId: result.auth.organizationId,
+    ...(status ? { status } : {}),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.project.findMany({
+      where,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        clientName: true,
+        address: true,
+        surfaceM2: true,
+        buildingType: true,
+        constructionYear: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+    prisma.project.count({ where }),
+  ]);
+
+  return apiJson({
+    data,
+    pagination: { total, page, pageSize, hasMore: page * pageSize < total },
+  });
+}
+
+export async function POST(req: NextRequest) {
+  const result = await authenticateApiRequest(req, "FULL");
+  if (!result.ok) return apiError(result.status, result.error, result.details);
+
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return apiError(400, "invalid_json_body");
+  }
+
+  // Validation minimale (prod : zod)
+  const name = String(body.name ?? "").trim().slice(0, 200);
+  const surfaceM2 = Number(body.surfaceM2);
+  const buildingType = String(body.buildingType ?? "");
+  if (!name) return apiError(400, "field_required", { field: "name" });
+  if (!Number.isFinite(surfaceM2) || surfaceM2 < 1 || surfaceM2 > 10000) {
+    return apiError(400, "invalid_surface", { field: "surfaceM2", min: 1, max: 10000 });
+  }
+  if (!["maison", "appartement", "immeuble", "tertiaire"].includes(buildingType)) {
+    return apiError(400, "invalid_building_type", { field: "buildingType" });
+  }
+
+  try {
+    await enforceQuota(result.auth.organizationId, "CALC_BASIC");
+  } catch (e) {
+    if (e instanceof PaywallError) return apiError(402, "quota_reached", { feature: e.feature });
+    throw e;
+  }
+
+  // Gate freemium centralisé (étape 3b). FREE = 1 projet max.
+  const gate = await enforceProjectCreationGate(result.auth.organizationId);
+  if (!gate.allowed) {
+    return apiError(402, "plan_limit_reached", { code: gate.reason, message: gate.message });
+  }
+
+  const project = await prisma.project.create({
+    data: {
+      organizationId: result.auth.organizationId,
+      name,
+      clientName: typeof body.clientName === "string" ? body.clientName : null,
+      address: typeof body.address === "string" ? body.address : null,
+      surfaceM2,
+      buildingType,
+      constructionYear: typeof body.constructionYear === "number" ? body.constructionYear : null,
+      status: "draft",
+    },
+    select: {
+      id: true, name: true, clientName: true, address: true,
+      surfaceM2: true, buildingType: true, constructionYear: true,
+      status: true, createdAt: true, updatedAt: true,
+    },
+  });
+
+  // Émet le webhook PROJECT_CREATED de manière silencieuse (best-effort)
+  emitWebhookEvent({
+    organizationId: result.auth.organizationId,
+    event: "PROJECT_CREATED",
+    data: { project },
+  }).catch(err => console.warn("[webhook emit failed]", err));
+
+  return apiJson(project, 201);
+}

@@ -1,0 +1,68 @@
+{
+  "legal": {
+    "nav": {
+      "heading": "Páginas legais",
+      "ariaLabel": "Navegação das páginas legais",
+      "warningTitle": "Modelos sujeitos a validação jurídica",
+      "warningBody": "Estes documentos são modelos genéricos fornecidos a título indicativo. Não constituem aconselhamento jurídico e devem ser revistos, adaptados e validados pelo seu consultor jurídico antes de qualquer publicação. Versão juridicamente vinculativa: francesa.",
+      "items": { "cgu": "Condições de Utilização", "cgv": "Condições de Venda", "privacy": "Privacidade (RGPD)", "cookies": "Cookies", "mentions": "Aviso legal (FR)" }
+    },
+    "cgu": {
+      "title": "Condições Gerais de Utilização",
+      "lastUpdated": "Última atualização: 9 de maio de 2026 — Versão vinculativa em francês",
+      "s1": { "title": "1. Objeto", "body": "Estas CGU regulam o acesso e a utilização do serviço Réno·Calc Pro. Versão vinculativa: francesa." },
+      "s2": { "title": "2. Acesso ao serviço", "body": "Serviço acessível 24/7, salvo força maior ou manutenção." },
+      "s3": { "title": "3. Conta de utilizador", "body": "Informações exatas necessárias. Eliminação possível a qualquer momento; dados removidos em 30 dias." },
+      "s4": { "title": "4. Descrição do serviço", "body": "Calculadora de auditoria energética 3CL-DPE 2021, modelos PDF premium, biblioteca de materiais. Estas estimativas NÃO substituem um DPE regulamentar." },
+      "s5": { "title": "5. Propriedade intelectual", "body": "Todos os elementos do serviço são propriedade exclusiva de Réno·Calc Pro." },
+      "s6": { "title": "6. Obrigações do utilizador", "body": "Utilização em conformidade com a lei. Proibido qualquer uso ilegal ou fraudulento." },
+      "s7": { "title": "7. Responsabilidade", "body": "Serviço best-effort. Responsabilidade limitada aos montantes pagos nos últimos 12 meses." },
+      "s8": { "title": "8. Suspensão e rescisão", "body": "Possível suspensão por incumprimento. Rescisão livre a partir do espaço pessoal." },
+      "s9": { "title": "9. Alterações às CGU", "body": "Notificação por e-mail pelo menos 30 dias antes da entrada em vigor." },
+      "s10": { "title": "10. Direito aplicável", "body": "Direito francês aplicável. Tribunais franceses competentes. Mediação possível." }
+    },
+    "cgv": {
+      "title": "Condições Gerais de Venda",
+      "lastUpdated": "Última atualização: 9 de maio de 2026 — Versão vinculativa em francês",
+      "s1": { "title": "1. Objeto", "body": "Regula as subscrições pagas ao serviço Réno·Calc Pro." },
+      "s2": { "title": "2. Planos e preços", "body": "Disponíveis em https://renocalcpro.fr/pricing. Preços com IVA, em euros." },
+      "s3": { "title": "3. Encomenda e pagamento", "body": "Pagamento seguro via Stripe. Subscrições mensais ou anuais com renovação tácita." },
+      "s4": { "title": "4. Entrega do serviço", "body": "Acesso imediato após validação do pagamento." },
+      "s5": { "title": "5. Direito de retratação", "body": "O utilizador renuncia expressamente ao direito de retratação ao ativar o serviço (art. L. 221-28 13° do Código de Consumo francês)." },
+      "s6": { "title": "6. Garantia e suporte", "body": "Prazo de resolução de 5 dias úteis para falhas imputáveis. Crédito proporcional possível." },
+      "s7": { "title": "7. Suspensão por falta de pagamento", "body": "3 tentativas em 14 dias. Suspensão e possível rescisão após 30 dias." },
+      "s8": { "title": "8. Mediação", "body": "Possibilidade de recurso gratuito ao mediador do consumo." }
+    },
+    "privacy": {
+      "title": "Política de privacidade",
+      "lastUpdated": "Última atualização: 9 de maio de 2026 — Conforme RGPD (Regulamento UE 2016/679)",
+      "s1": { "title": "1. Responsável pelo tratamento", "body": "VA ETHICS GROUP. Contacto: rgpd@renocalcpro.fr" },
+      "s2": { "title": "2. DPO", "body": "Pedidos RGPD para rgpd@renocalcpro.fr." },
+      "s3": { "title": "3. Dados recolhidos", "body": "Dados de conta, processo de auditoria, fotos, dados de pagamento via Stripe, métricas anónimas." },
+      "s4": { "title": "4. Finalidades e bases legais", "body": "Execução contratual, obrigação legal, interesse legítimo, consentimento explícito." },
+      "s5": { "title": "5. Prazos de conservação", "body": "Conta ativa: indefinido. Inativa: 3 anos. Auditorias: 5 anos. Faturas: 10 anos." },
+      "s6": { "title": "6. Destinatários", "body": "OVH SAS (França, alojamento), Resend (Alemanha, e-mail), Stripe (Irlanda, pagamentos), Anthropic (IA opt-in), Plausible (analítica)." },
+      "s7": { "title": "7. Transferências fora da UE", "body": "Anthropic pode tratar dados nos EUA com cláusulas contratuais tipo (Decisão 2021/914)." },
+      "s8": { "title": "8. Os seus direitos", "body": "Acesso, retificação, eliminação, portabilidade, oposição, limitação. Exercício via rgpd@renocalcpro.fr em menos de 30 dias. Reclamação possível à CNIL francesa." },
+      "s9": { "title": "9. Segurança", "body": "TLS 1.3, encriptação em repouso, backups GPG AES256, log de auditoria HMAC-SHA256, magic-link 15 min, formação anual da equipa." },
+      "s10": { "title": "10. Cookies", "body": "Ver Política de Cookies dedicada. Sem cookies publicitários nem rastreio de terceiros." },
+      "s11": { "title": "11. Notificação de violações", "body": "Notificação à CNIL em 72 horas (art. 33 RGPD)." },
+      "s12": { "title": "12. Alterações", "body": "Notificação por e-mail pelo menos 30 dias antes." }
+    },
+    "cookies": {
+      "title": "Política de cookies",
+      "lastUpdated": "Última atualização: 9 de maio de 2026",
+      "s1": { "title": "1. Abordagem minimalista", "body": "Sem cookies publicitários nem rastreio de terceiros. Plausible Analytics funciona sem cookies." },
+      "s2": { "title": "2. Cookies estritamente necessários", "body": "Os cookies seguintes são essenciais e não exigem consentimento prévio segundo a diretiva ePrivacy:" },
+      "table": {
+        "title": "Lista de cookies utilizados",
+        "col1": "Nome", "col2": "Finalidade", "col3": "Tipo", "col4": "Duração",
+        "row1Purpose": "Autenticação de sessão NextAuth", "row1Type": "Essencial",
+        "row2Purpose": "Proteção contra ataques CSRF", "row2Type": "Essencial",
+        "row3Purpose": "Memorização do idioma escolhido", "row3Type": "Preferência",
+        "session": "Sessão", "year": "ano"
+      },
+      "s3": { "title": "3. As suas opções", "body": "Pode configurar o seu navegador para bloquear ou eliminar cookies a qualquer momento." }
+    }
+  }
+}

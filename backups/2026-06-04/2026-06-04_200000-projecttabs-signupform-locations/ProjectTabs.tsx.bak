@@ -1,0 +1,50 @@
+// components/p/ProjectTabs.tsx — Onglets de navigation projet particulier v2.0
+
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+interface Props { locale: string; projectId: string }
+
+const TABS = [
+  { key: "synthese",  label: "Synthèse",   icon: "📋" },
+  { key: "photos",    label: "Photos",     icon: "📷" },
+  { key: "results",   label: "Résultats",  icon: "📊" },
+  { key: "comfort",   label: "Confort",    icon: "🌡" },
+  { key: "savings",   label: "Économies",  icon: "💶" },
+  { key: "works",     label: "Travaux",    icon: "🔨" },
+  { key: "aids",      label: "Aides",      icon: "💚" },
+  { key: "documents", label: "Documents",  icon: "📄" },
+];
+
+export function ProjectTabs({ locale, projectId }: Props) {
+  const pathname = usePathname();
+
+  return (
+    <nav aria-label="Navigation projet" className="border-b border-stone-200">
+      <div className="-mb-px flex flex-wrap gap-1 overflow-x-auto">
+        {TABS.map(t => {
+          const href = `/${locale}/p/projects/${projectId}/${t.key}`;
+          const active = pathname === href || pathname?.endsWith(`/${t.key}`);
+          return (
+            <Link
+              key={t.key}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={[
+                "inline-flex shrink-0 items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                active
+                  ? "border-teal-700 text-teal-800"
+                  : "border-transparent text-stone-600 hover:border-stone-300 hover:text-stone-900",
+              ].join(" ")}
+            >
+              <span aria-hidden>{t.icon}</span>
+              <span>{t.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

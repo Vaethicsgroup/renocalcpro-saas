@@ -1,0 +1,466 @@
+// lib/ai/assistant/knowledge/recognize.ts
+// Aide à la RECONNAISSANCE in-situ de matériaux, isolants, systèmes.
+// L'IA propose des indices observables, des tests simples, des photos types.
+// Pas de remplacement d'un sondage destructif si doute persistant.
+
+export interface RecognizeGuide {
+  /** Référence : "wall:pierre", "insulation:laine_verre", "heating:pac_air_eau" */
+  ref: string;
+  /** Catégorie pour le routing */
+  category: "material" | "insulation" | "system" | "structure" | "glazing";
+  /** Ce qu'on cherche à reconnaître */
+  label: string;
+  /** Indices visuels observables sans démontage */
+  visualClues: string[];
+  /** Tests simples non destructifs (toucher, son, mesure) */
+  simpleTests: string[];
+  /** Tests semi-destructifs si doute persistant (gratter enduit, démonter prise) */
+  invasiveTests?: string[];
+  /** Différencier des matériaux/systèmes voisins (pièges) */
+  distinguishFrom: Array<{ otherRef: string; otherLabel: string; tellingDifference: string }>;
+  /** Quand préférer « inconnu » plutôt qu'une mauvaise hypothèse */
+  whenLeaveUnknown: string;
+}
+
+export const RECOGNIZE_GUIDES: Record<string, RecognizeGuide> = {
+  // ── MURS — MATÉRIAUX BÂTI INITIAL ─────────────────────────────────────────
+  "wall:pierre_taille": {
+    ref: "wall:pierre_taille",
+    category: "material",
+    label: "Pierre de taille",
+    visualClues: [
+      "Blocs réguliers, joints fins (1 à 5 mm), surfaces planes",
+      "Couleur blonde, beige, calcaire ou grès selon région",
+      "Très lourd au coup, son sourd",
+      "Souvent visible en façade haussmannienne, monumental, immeubles bourgeois",
+    ],
+    simpleTests: [
+      "Frappez avec le poing : son très sourd, pas de vibration",
+      "Sentez la fraîcheur en été : la pierre de taille reste fraîche au toucher (forte inertie)",
+      "Mesurez l'épaisseur d'un mur via embrasure de fenêtre : 50 à 80 cm typique",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "wall:moellons",
+        otherLabel: "Moellons",
+        tellingDifference: "Moellons = pierres irrégulières avec joints épais (1-3 cm), souvent enduits. Pierre de taille = blocs réguliers, joints fins, parfois apparente.",
+      },
+      {
+        otherRef: "wall:beton_plein",
+        otherLabel: "Béton plein",
+        tellingDifference: "Béton = surface uniforme grise, parfois avec marques de banche (planches), pas de joints visibles. Pierre = joints visibles ou apparente sous l'enduit.",
+      },
+    ],
+    whenLeaveUnknown: "Si le mur est entièrement enduit et que vous ne pouvez pas gratter pour voir : laissez « inconnu » + indiquez période de construction et région — l'IA fera une hypothèse régionale (calcaire en Île-de-France, granite en Bretagne…).",
+  },
+
+  "wall:moellons": {
+    ref: "wall:moellons",
+    category: "material",
+    label: "Moellons (maçonnerie traditionnelle)",
+    visualClues: [
+      "Pierres de tailles irrégulières assemblées avec mortier de chaux",
+      "Joints épais (10-30 mm), parfois beurrés en façade",
+      "Couleur hétérogène",
+      "Fréquent en bâti rural ancien (avant 1948), murs très épais (50-90 cm)",
+    ],
+    simpleTests: [
+      "Frappez : son sourd",
+      "Observez sur une zone non enduite (cave, grange, mur intérieur dégagé) : vous voyez clairement les pierres et le mortier",
+    ],
+    invasiveTests: [
+      "Grattez doucement l'enduit dans un coin discret jusqu'à voir la première couche de pierre",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "wall:pisé",
+        otherLabel: "Pisé",
+        tellingDifference: "Pisé = terre crue compactée par couches horizontales visibles, pas de pierres. Moellons = pierres + mortier. Si vous voyez des « bandes » horizontales = pisé.",
+      },
+    ],
+    whenLeaveUnknown: "Si vous savez que le bâtiment est antérieur à 1948 mais que vous n'arrivez pas à voir le matériau : choisissez « bâti ancien à confirmer » plutôt qu'une hypothèse hasardeuse.",
+  },
+
+  "wall:parpaing": {
+    ref: "wall:parpaing",
+    category: "material",
+    label: "Parpaing (bloc béton creux)",
+    visualClues: [
+      "Blocs gris uniformes 20×20×50 cm, joints réguliers de 1-2 cm",
+      "Surface texturée granuleuse",
+      "Mur d'épaisseur ~25-30 cm avec enduit",
+      "Construction 1950-2000 dominante en pavillonnaire",
+    ],
+    simpleTests: [
+      "Frappez : son creux distinctif (alvéoles)",
+      "Mesurez l'épaisseur via embrasure : 22-25 cm = parpaing, 18-22 = brique creuse",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "wall:brique_creuse",
+        otherLabel: "Brique creuse",
+        tellingDifference: "Parpaing = gris, son creux profond, gros blocs visibles. Brique creuse = rougeâtre/orangée, son plus aigu, blocs plus petits (20×30×6 ou 20×30×10).",
+      },
+    ],
+    whenLeaveUnknown: "Si construction 1960-1990 et son creux confirmé : parpaing très probable, vous pouvez valider sans risque majeur.",
+  },
+
+  "wall:brique_creuse": {
+    ref: "wall:brique_creuse",
+    category: "material",
+    label: "Brique creuse",
+    visualClues: [
+      "Blocs rougeâtres ou orangés avec alvéoles visibles si débitée",
+      "Format 20×30×10 cm fréquent",
+      "Construction 1900-1980, courante en région Nord, Centre, Sud-Ouest",
+    ],
+    simpleTests: ["Frappez : son creux mais plus aigu que le parpaing"],
+    distinguishFrom: [
+      {
+        otherRef: "wall:brique_pleine",
+        otherLabel: "Brique pleine",
+        tellingDifference: "Brique pleine = lourde, son sourd, format plus petit (5×10×22 cm typique), construction 1880-1950. Brique creuse = légère, son creux, format plus gros.",
+      },
+    ],
+    whenLeaveUnknown: "Si vous ne pouvez pas démonter ou voir : « brique » sans préciser permet à l'IA de prendre la moyenne pondérée.",
+  },
+
+  // ── ISOLANTS ──────────────────────────────────────────────────────────────
+  "insulation:laine_verre": {
+    ref: "insulation:laine_verre",
+    category: "insulation",
+    label: "Laine de verre",
+    visualClues: [
+      "Couleur jaune verdâtre, fibres souples, parfois avec voile blanc kraft",
+      "Souvent en rouleaux ou panneaux semi-rigides",
+      "Lit posé entre solives en combles perdus, ou collée derrière placo en doublage mural",
+    ],
+    simpleTests: [
+      "Touchez avec gants : fibres piquantes",
+      "Mesurez l'épaisseur avec une règle plantée verticalement",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "insulation:laine_roche",
+        otherLabel: "Laine de roche",
+        tellingDifference: "Laine de roche = grise / brune, plus rigide, plus dense. Laine de verre = jaune / verdâtre, plus légère, plus souple.",
+      },
+      {
+        otherRef: "insulation:ouate_cellulose",
+        otherLabel: "Ouate de cellulose (en vrac)",
+        tellingDifference: "Ouate = grise / beige, en vrac soufflé, ressemble à du papier mâché. Laine de verre = fibres jaunes en lit homogène.",
+      },
+    ],
+    whenLeaveUnknown: "Si vous voyez de la laine sans couleur identifiable : indiquez « laine minérale » sans préciser — différence d'impact thermique ≈ 5 %.",
+  },
+
+  "insulation:polystyrene": {
+    ref: "insulation:polystyrene",
+    category: "insulation",
+    label: "Polystyrène expansé (PSE) ou extrudé (XPS)",
+    visualClues: [
+      "Panneaux blancs (PSE) ou bleu/rose (XPS)",
+      "Aspect alvéolé visible (billes pour PSE, structure plus lisse pour XPS)",
+      "Très léger",
+      "Souvent collé derrière placo en doublage intérieur ou en ITE",
+    ],
+    simpleTests: [
+      "Touchez : très léger, ne pique pas, surface lisse",
+      "Pressez avec ongle : marque persistante = PSE, marque légère = XPS",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "insulation:polyurethane",
+        otherLabel: "Polyuréthane",
+        tellingDifference: "Polyuréthane = jaune / orangé, surface lisse, plus dense. Polystyrène = blanc, alvéolé.",
+      },
+    ],
+    whenLeaveUnknown: "PSE et XPS ont des λ proches (0,032 vs 0,036) — la différence est négligeable pour le diagnostic.",
+  },
+
+  // ── SYSTÈMES — CHAUFFAGE ──────────────────────────────────────────────────
+  "heating:pac_air_eau": {
+    ref: "heating:pac_air_eau",
+    category: "system",
+    label: "Pompe à chaleur air-eau (PAC)",
+    visualClues: [
+      "Unité extérieure (caisson métallique) sur dalle béton ou support mural, ventilateur visible derrière grille",
+      "Unité intérieure : un ballon eau + module hydraulique avec tuyauteries et vase d'expansion",
+      "Pas de cheminée d'évacuation (contrairement à une chaudière)",
+      "Connectée à des radiateurs basse température ou plancher chauffant",
+    ],
+    simpleTests: [
+      "Plaque signalétique sur l'unité extérieure : marque, modèle, COP/SCOP, énergie « électrique »",
+      "Bruit de ventilateur extérieur en hiver = PAC en fonction",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "heating:clim_reversible",
+        otherLabel: "Climatisation réversible",
+        tellingDifference: "Clim réversible = unités intérieures soufflent de l'air directement (splits muraux). PAC air-eau = pas de soufflage direct, chaleur via radiateurs ou plancher chauffant. Si vous voyez des splits = c'est de la clim, pas une PAC air-eau.",
+      },
+      {
+        otherRef: "heating:chaudiere_gaz",
+        otherLabel: "Chaudière gaz",
+        tellingDifference: "Chaudière gaz = compteur gaz à proximité, conduit d'évacuation des fumées (cheminée ou ventouse). PAC = pas de gaz, pas de cheminée, juste électricité.",
+      },
+    ],
+    whenLeaveUnknown: "Si vous voyez une unité extérieure mais ne savez pas si elle alimente des radiateurs (PAC air-eau) ou des splits (clim) : suivez les tuyaux. Tuyaux d'eau de gros diamètre vers des radiateurs = PAC air-eau.",
+  },
+
+  "heating:chaudiere_gaz_condensation": {
+    ref: "heating:chaudiere_gaz_condensation",
+    category: "system",
+    label: "Chaudière gaz à condensation",
+    visualClues: [
+      "Boîtier mural (souvent blanc) avec écran de commande",
+      "Évacuation par ventouse en façade (tube concentrique)",
+      "Compteur gaz à proximité",
+      "Présence d'un siphon de condensats (tuyau évacuation eau)",
+    ],
+    simpleTests: [
+      "Plaque signalétique : type « chaudière gaz à condensation », rendement ≥ 92 %",
+      "Si évacuation en cheminée maçonnée traditionnelle = ancienne chaudière standard, pas condensation",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "heating:chaudiere_gaz_standard",
+        otherLabel: "Chaudière gaz standard (basse température ou ancienne)",
+        tellingDifference: "Standard = pas de siphon de condensats, évacuation par cheminée traditionnelle. Condensation = siphon obligatoire (eau acide), évacuation ventouse.",
+      },
+    ],
+    whenLeaveUnknown: "Si construction post-2010 et chaudière neuve : c'est forcément à condensation (interdiction des standards depuis sept. 2018 en neuf).",
+  },
+
+  // ── VITRAGE ───────────────────────────────────────────────────────────────
+  "glazing:double_vitrage_vir": {
+    ref: "glazing:double_vitrage_vir",
+    category: "glazing",
+    label: "Double vitrage à isolation renforcée (VIR)",
+    visualClues: [
+      "Étiquette gravée dans le coin : composition « 4-16-4 » ou « 4-20-4 » avec gaz argon",
+      "Reflet légèrement rosé / orangé (couche bas-émissive)",
+      "Cadre PVC ou bois récent (post-2005)",
+    ],
+    simpleTests: [
+      "Test des reflets : approchez une flamme à 5 cm du vitrage → 4 reflets dont 1 plus coloré (rose/orange) = VIR",
+      "Étiquette CEKAL ou Uw < 1,5 mentionné",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "glazing:double_vitrage_standard",
+        otherLabel: "Double vitrage standard (sans VIR)",
+        tellingDifference: "Standard = 4 reflets sans coloration, Uw ≈ 2,5-3. VIR = 4 reflets dont 1 coloré, Uw ≈ 1,1-1,5. Différence = couche bas-émissive métallique.",
+      },
+    ],
+    whenLeaveUnknown: "Si construction post-2012 (RT 2012) : c'est très probablement VIR. Si construction 1990-2010 : double vitrage standard plus probable.",
+  },
+};
+
+  // ── BÂTI ANCIEN (suite) ───────────────────────────────────────────────────
+  "wall:pisé": {
+    ref: "wall:pisé",
+    category: "material",
+    label: "Pisé (terre crue compactée)",
+    visualClues: [
+      "Terre brun-orangé compactée par couches horizontales visibles (banches successives)",
+      "Bandes horizontales de 60-80 cm de hauteur visibles en façade non enduite",
+      "Très épais : 50-80 cm couramment",
+      "Construction rurale 1700-1900 dans la vallée du Rhône, Dauphiné, Lyonnais",
+    ],
+    simpleTests: [
+      "Grattez doucement : se désagrège en poudre fine = terre, pas de pierre",
+      "Sensible à l'eau : trace de ruissellement visible en bas de mur (érosion)",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "wall:moellons",
+        otherLabel: "Moellons",
+        tellingDifference: "Moellons = pierres + mortier visibles. Pisé = monolithique, sans pierres, bandes de banches.",
+      },
+      {
+        otherRef: "wall:torchis",
+        otherLabel: "Torchis (sur colombage)",
+        tellingDifference: "Torchis = panneaux entre poteaux bois (colombage), épaisseur 10-15 cm. Pisé = mur entier en terre, épaisseur 50-80 cm.",
+      },
+    ],
+    whenLeaveUnknown: "Si vous savez que c'est ancien et rural, et que le mur est très épais sans pierre apparente : pisé probable. Photo + zone géographique aident l'IA à confirmer.",
+  },
+
+  "wall:torchis": {
+    ref: "wall:torchis",
+    category: "material",
+    label: "Torchis (terre + paille sur colombage)",
+    visualClues: [
+      "Panneaux de remplissage entre poteaux et traverses bois apparents",
+      "Surface souvent crépie chaux ou apparente avec brin de paille visible",
+      "Bois apparent en façade = colombage (Normandie, Alsace, Picardie)",
+    ],
+    simpleTests: [
+      "Grattez : matière mixte terre + fibres végétales",
+      "Très perméable à la vapeur",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "wall:pisé",
+        otherLabel: "Pisé",
+        tellingDifference: "Torchis nécessite une ossature bois apparente (colombage). Pisé est monolithique sans bois.",
+      },
+    ],
+    whenLeaveUnknown: "Si vous voyez une ossature bois en façade avec remplissage : c'est très probablement du torchis (ou brique en remplissage récent).",
+  },
+
+  // ── ISOLANTS BIOSOURCÉS ───────────────────────────────────────────────────
+  "insulation:ouate_cellulose": {
+    ref: "insulation:ouate_cellulose",
+    category: "insulation",
+    label: "Ouate de cellulose",
+    visualClues: [
+      "Vrac soufflé gris-beige, ressemble à du papier mâché flocky",
+      "Souvent en combles perdus, soufflé sur 30-40 cm",
+      "Densité plus élevée que laine minérale (35-50 kg/m³ vs 15-25)",
+    ],
+    simpleTests: [
+      "Toucher : doux, fibres courtes, ne pique pas",
+      "Couleur grise homogène (papier journal recyclé broyé)",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "insulation:laine_verre",
+        otherLabel: "Laine de verre",
+        tellingDifference: "Laine verre = jaune/verdâtre, fibres piquantes, en rouleaux/panneaux. Ouate = grise, vrac soufflé, douce au toucher.",
+      },
+    ],
+    whenLeaveUnknown: "Si vrac gris en combles + maison récente / éco-construction : ouate très probable.",
+  },
+
+  "insulation:laine_chanvre": {
+    ref: "insulation:laine_chanvre",
+    category: "insulation",
+    label: "Laine de chanvre",
+    visualClues: [
+      "Couleur beige-jaune, fibres végétales visibles",
+      "Panneaux semi-rigides ou rouleaux",
+      "Souvent associée à éco-construction / bâti ancien rénové",
+    ],
+    simpleTests: [
+      "Odeur végétale légère",
+      "Touche douce, pas piquante",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "insulation:laine_bois",
+        otherLabel: "Laine de bois (fibre)",
+        tellingDifference: "Laine bois = panneaux denses brun foncé, plus rigides. Chanvre = beige clair, plus souple.",
+      },
+    ],
+    whenLeaveUnknown: "Plage λ similaire (0,038-0,045) — différence mineure pour calcul thermique.",
+  },
+
+  // ── SYSTÈMES — PAC GÉOTHERMIQUE ───────────────────────────────────────────
+  "heating:pac_geothermique": {
+    ref: "heating:pac_geothermique",
+    category: "system",
+    label: "Pompe à chaleur géothermique",
+    visualClues: [
+      "Pas d'unité extérieure visible (capteurs enterrés)",
+      "Module hydraulique intérieur compact, silencieux",
+      "Présence de regard de puits ou départ de capteurs en jardin",
+      "Plaque signalétique mentionne « géothermie » ou « eau-eau » ou « sol-eau »",
+    ],
+    simpleTests: [
+      "Très silencieuse (pas de ventilateur extérieur)",
+      "Documentation propriétaire : plan des capteurs horizontaux ou forage vertical",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "heating:pac_air_eau",
+        otherLabel: "PAC air-eau",
+        tellingDifference: "Air-eau a une unité extérieure ventilée bruyante. Géothermique : aucune unité extérieure, capteurs enterrés invisibles.",
+      },
+    ],
+    whenLeaveUnknown: "Si vous ne voyez pas d'unité extérieure mais vous voyez une pompe à chaleur intérieure : géothermique très probable. Demandez plan installation.",
+  },
+
+  // ── SOLAIRE ───────────────────────────────────────────────────────────────
+  "system:solaire_thermique": {
+    ref: "system:solaire_thermique",
+    category: "system",
+    label: "Capteurs solaires thermiques (eau chaude)",
+    visualClues: [
+      "Panneaux plans foncés en toiture (absorbeur noir + verre)",
+      "OU tubes sous vide en rangées parallèles",
+      "Liaisons hydrauliques visibles (gros tuyaux isolés)",
+      "Ballon stratifié au sol/comble avec deux échangeurs",
+    ],
+    simpleTests: [
+      "Toucher panneau en plein soleil : très chaud (50-70 °C)",
+      "Tuyau aller chaud, retour tiède = installation en fonction",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "system:photovoltaique",
+        otherLabel: "Panneaux photovoltaïques",
+        tellingDifference: "PV = panneaux bleu-noir avec cellules visibles, câbles électriques fins. Thermique = panneau plan noir uniforme + tuyauterie eau.",
+      },
+    ],
+    whenLeaveUnknown: "Si panneaux en toiture + ballon ECS à proximité : thermique probable.",
+  },
+
+  "system:photovoltaique": {
+    ref: "system:photovoltaique",
+    category: "system",
+    label: "Panneaux photovoltaïques",
+    visualClues: [
+      "Panneaux bleu-noir avec cellules carrées visibles (silicium cristallin)",
+      "Câbles fins courant le long des rampants vers onduleur",
+      "Onduleur en cellier ou garage (boîtier ventilé avec écran)",
+    ],
+    simpleTests: [
+      "Compteur Linky affiche production injectée si installation en revente totale ou surplus",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "system:solaire_thermique",
+        otherLabel: "Solaire thermique",
+        tellingDifference: "Cf. fiche solaire thermique. PV = électricité, thermique = eau chaude.",
+      },
+    ],
+    whenLeaveUnknown: "Si onduleur visible + panneaux en toiture : PV.",
+  },
+
+  // ── VMC ───────────────────────────────────────────────────────────────────
+  "system:vmc_double_flux": {
+    ref: "system:vmc_double_flux",
+    category: "system",
+    label: "VMC double flux",
+    visualClues: [
+      "Caisson volumineux en comble (plus gros qu'une simple flux)",
+      "DEUX réseaux de gaines : un d'extraction (cuisine, SDB, WC), un d'insufflation (chambres, séjour)",
+      "Bouches d'insufflation discrètes au plafond / mur des pièces de vie",
+      "Échangeur de chaleur visible dans le caisson (croix métallique)",
+    ],
+    simpleTests: [
+      "Mettez la main devant une bouche dans une chambre : air SOUFFLÉ tiède = double flux",
+      "vs. simple flux où chambres ne reçoivent que l'air par défauts d'étanchéité",
+    ],
+    distinguishFrom: [
+      {
+        otherRef: "system:vmc_simple_flux",
+        otherLabel: "VMC simple flux",
+        tellingDifference: "Simple flux = bouches uniquement en cuisine/SDB/WC, AIR EXTRAIT seulement. Double flux = bouches AUSSI dans les chambres avec air SOUFFLÉ tiède.",
+      },
+    ],
+    whenLeaveUnknown: "Si vous trouvez des bouches d'air dans les chambres = double flux quasi-certain.",
+  },
+};
+
+/** Helper : récupère une fiche reconnaissance */
+export function getRecognizeGuide(ref: string): RecognizeGuide | null {
+  return RECOGNIZE_GUIDES[ref] ?? null;
+}
+
+/** Helper : liste les guides d'une catégorie */
+export function listRecognizeGuides(category: RecognizeGuide["category"]): RecognizeGuide[] {
+  return Object.values(RECOGNIZE_GUIDES).filter(g => g.category === category);
+}

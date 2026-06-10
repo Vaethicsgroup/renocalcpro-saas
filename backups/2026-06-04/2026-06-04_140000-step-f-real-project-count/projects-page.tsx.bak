@@ -1,0 +1,133 @@
+// app/[locale]/p/projects/page.tsx — Liste des projets particulier v2.1
+// Étape E : ajout de la carte freemium en tête de page (badge plan + compteur
+// + CTA upgrade quand FREE). Lecture du plan via getCurrentBillingPlan().
+import Link from "next/link";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { DPELabel } from "@/components/results/DPELabel";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { DashboardFreemiumCard } from "@/components/billing/DashboardFreemiumCard";
+import { getCurrentBillingPlan } from "@/server/auth/getCurrentBillingPlan";
+import { getCurrentActiveProjectsCount } from "@/server/auth/getCurrentActiveProjectsCount";
+import { getRemainingProjects } from "@/lib/billing/usage-policy";
+
+interface Props { params: Promise<{ locale: string }> }
+
+export default async function ProjectsListPage({ params }: Props) {
+  const { locale } = await params;
+
+  // Étape F — plan + comptage RÉEL des projets actifs (parallèle).
+  // Tous deux fail-closed / fail-soft : ne throw jamais.
+  const [billingPlan, activeProjectsCount] = await Promise.all([
+    getCurrentBillingPlan(),
+    getCurrentActiveProjectsCount(),
+  ]);
+
+  // MVP : 2 projets mockés
+  const projects = [
+    {
+      id: "demo",
+      name: "Maison des Tilleuls",
+      location: "87000 Limoges",
+      surface: 120,
+      year: 1978,
+      currentDPE: "E" as const,
+      targetDPE: "B" as const,
+      progress: 60,
+      updatedAt: "il y a 2 jours",
+    },
+  ];
+
+  // Étape F — compteur basé sur le count Prisma réel (et non la longueur du
+  // tableau mocké), pour que le badge reflète l'état serveur exact.
+  const remainingProjects = getRemainingProjects(billingPlan, {
+    activeProjectsCount,
+    pdfExportsThisMonth: 0,
+    emailVerified: true,
+  });
+
+  return (
+    <div>
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-3xl font-bold tracking-tight text-stone-900 md:text-4xl" style={{ fontFamily: "Source Serif 4, Georgia, serif" }}>
+            Mes projets
+          </h1>
+          <p className="mt-1 text-sm text-stone-600">{projects.length} projet{projects.length > 1 ? "s" : ""} en cours</p>
+        </div>
+        <Button variant="primary" size="md">
+          <Link href={`/${locale}/onboarding/individual`} className="contents">+ Nouveau projet</Link>
+        </Button>
+      </header>
+
+      {/* Étape E — Carte freemium (badge plan + compteur + CTA upgrade) */}
+      <div className="mb-6">
+        <DashboardFreemiumCard
+          plan={billingPlan}
+          remainingProjects={remainingProjects}
+          locale={locale}
+        />
+      </div>
+
+      {projects.length === 0 ? (
+        <EmptyState
+          type="projects"
+          action={
+            <Button variant="primary" size="md">
+              <Link href={`/${locale}/onboarding/individual`} className="contents">Créer mon premier projet</Link>
+            </Button>
+          }
+        />
+      ) : (
+        <div className="grid gap-5 sm:grid-cols-2">
+          {projects.map(p => (
+            <Card key={p.id} variant="interactive" padded={false} className="overflow-hidden">
+              <Link href={`/${locale}/p/projects/${p.id}/synthese`} className="block">
+                {/* Vignette */}
+                <div className="relative h-40 bg-gradient-to-br from-amber-100 via-stone-100 to-teal-50">
+                  <div className="absolute right-3 top-3 flex items-center gap-2">
+                    <span className="rounded-full bg-white/90 px-2 py-0.5 text-2xs font-semibold text-stone-700 shadow-soft">{p.updatedAt}</span>
+                  </div>
+                </div>
+                <div className="p-5">
+                  <h3 className="font-serif text-lg font-bold text-stone-900" style={{ fontFamily: "Source Serif 4, Georgia, serif" }}>{p.name}</h3>
+                  <p className="text-xs text-stone-500">📍 {p.location}</p>
+
+                  <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-stone-100 pt-4 text-2xs">
+                    <div>
+                      <dt className="text-stone-500">Surface</dt>
+                      <dd className="font-bold text-stone-900 tabular-nums">{p.surface} m²</dd>
+                    </div>
+                    <div>
+                      <dt className="text-stone-500">Année</dt>
+                      <dd className="font-bold text-stone-900 tabular-nums">{p.year}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-stone-500">DPE actuel → cible</dt>
+                      <dd className="mt-0.5 flex items-center gap-1">
+                        <DPELabel classification={p.currentDPE} size="sm" />
+                        <span aria-hidden className="text-stone-400">→</span>
+                        <DPELabel classification={p.targetDPE} size="sm" />
+                      </dd>
+                    </div>
+                  </dl>
+
+                  {/* Progress */}
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-2xs">
+                      <span className="text-stone-500">Avancement</span>
+                      <span className="font-semibold text-stone-700">{p.progress} %</span>
+                    </div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100">
+                      <div className="h-full bg-gradient-to-r from-teal-600 to-amber-500 transition-all" style={{ width: `${p.progress}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

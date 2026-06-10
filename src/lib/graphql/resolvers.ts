@@ -1,0 +1,340 @@
+// lib/graphql/resolvers.ts
+// Resolvers GraphQL — wrapper sur Prisma + helpers SaaS existants.
+// Auth via context (clé API Bearer extraite par /api/v1/graphql route).
+
+import { prisma } from "@/lib/db/client";
+import { fetchAppliedOverridesForOrg } from "@/lib/api/overrides";
+import { enforceQuota, PaywallError } from "@/lib/features/canUse";
+import { emitWebhookEvent } from "@/lib/webhooks/dispatch";
+import { enforceProjectCreationGate } from "@/server/billing/projectCreationGate";
+import type { ApiKey } from "@prisma/client";
+import type { FeatureFlag } from "@prisma/client";
+
+export interface GraphQLContext {
+  apiKey: ApiKey;
+  organizationId: string;
+}
+
+const TEMPLATE_FEATURE: Record<string, FeatureFlag> = {
+  AUDIT_PARTICULIER: "PDF_TEMPLATE_PARTICULIER",
+  DPE_COLLECTIF: "PDF_TEMPLATE_DPE_COLLECTIF",
+  AUDIT_COPROPRIETE: "PDF_TEMPLATE_COPROPRIETE",
+  AUDIT_TERTIAIRE: "PDF_TEMPLATE_TERTIAIRE",
+};
+
+export const resolvers = {
+  Query: {
+    me: async (_: unknown, __: unknown, ctx: GraphQLContext) => {
+      const [org, sub] = await Promise.all([
+        prisma.organization.findUnique({
+          where: { id: ctx.organizationId },
+          select: { id: true, name: true, slug: true, clientType: true },
+        }),
+        prisma.subscription.findUnique({
+          where: { organizationId: ctx.organizationId },
+          select: { plan: true, usageProjects: true, usageReports: true, usagePhotos: true },
+        }),
+      ]);
+      if (!org || !sub) throw new Error("organization_not_found");
+      return {
+        organization: { ...org, plan: sub.plan },
+        apiKey: { prefix: ctx.apiKey.prefix, scope: ctx.apiKey.scope, name: ctx.apiKey.name },
+        quotas: {
+          projects: { used: sub.usageProjects, limit: null },
+          reports: { used: sub.usageReports, limit: null },
+          photos: { used: sub.usagePhotos, limit: null },
+        },
+      };
+    },
+
+    project: async (_: unknown, args: { id: string }, ctx: GraphQLContext) => {
+      return prisma.project.findFirst({
+        where: { id: args.id, organizationId: ctx.organizationId },
+      });
+    },
+
+    projects: async (_: unknown, args: { page?: number; pageSize?: number; status?: string }, ctx: GraphQLContext) => {
+      const page = Math.max(1, args.page ?? 1);
+      const pageSize = Math.min(100, Math.max(1, args.pageSize ?? 20));
+      const where = {
+        organizationId: ctx.organizationId,
+        ...(args.status ? { status: args.status } : {}),
+      };
+      const [data, total] = await Promise.all([
+        prisma.project.findMany({
+          where,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          orderBy: { updatedAt: "desc" },
+        }),
+        prisma.project.count({ where }),
+      ]);
+      return {
+        data,
+        pagination: { total, page, pageSize, hasMore: page * pageSize < total },
+      };
+    },
+
+    report: async (_: unknown, args: { id: string }, ctx: GraphQLContext) => {
+      return prisma.report.findFirst({
+        where: { id: args.id, organizationId: ctx.organizationId },
+      });
+    },
+
+    appliedOverrides: async (_: unknown, __: unknown, ctx: GraphQLContext) => {
+      return fetchAppliedOverridesForOrg(ctx.organizationId);
+    },
+
+    // ── Sprint 29 — Assistant IA ──────────────────────────────────────────
+    assistantConversations: async (
+      _: unknown,
+      args: { page?: number; pageSize?: number; persona?: string; contextType?: string },
+      ctx: GraphQLContext,
+    ) => {
+      const page = Math.max(1, args.page ?? 1);
+      const pageSize = Math.max(1, Math.min(100, args.pageSize ?? 20));
+      const where: Record<string, unknown> = { organizationId: ctx.organizationId, deletedAt: null };
+      if (args.persona) where.persona = args.persona;
+      if (args.contextType) where.contextType = args.contextType;
+
+      const [items, total] = await Promise.all([
+        prisma.assistantConversation.findMany({
+          where,
+          orderBy: { updatedAt: "desc" },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          include: {
+            _count: { select: { messages: true, feedback: true } },
+            feedback: { take: 5, orderBy: { createdAt: "desc" } },
+          },
+        }),
+        prisma.assistantConversation.count({ where }),
+      ]);
+
+      return {
+        items: items.map(c => ({
+          ...c,
+          messageCount: c._count.messages,
+          feedbackCount: c._count.feedback,
+          feedback: c.feedback.map(f => ({
+            id: f.id, helpful: f.helpful, issueKind: f.issueKind,
+            hasComment: Boolean(f.comment), createdAt: f.createdAt,
+          })),
+        })),
+        pagination: {
+          total, page, pageSize,
+          hasMore: page * pageSize < total,
+        },
+      };
+    },
+
+    assistantConversation: async (_: unknown, args: { id: string }, ctx: GraphQLContext) => {
+      const conv = await prisma.assistantConversation.findFirst({
+        where: { id: args.id, organizationId: ctx.organizationId },
+        include: {
+          _count: { select: { messages: true, feedback: true } },
+          feedback: { orderBy: { createdAt: "desc" } },
+        },
+      });
+      if (!conv) return null;
+      return {
+        ...conv,
+        messageCount: conv._count.messages,
+        feedbackCount: conv._count.feedback,
+        feedback: conv.feedback.map(f => ({
+          id: f.id, helpful: f.helpful, issueKind: f.issueKind,
+          hasComment: Boolean(f.comment), createdAt: f.createdAt,
+        })),
+      };
+    },
+
+    assistantStats: async (_: unknown, args: { days?: number }, ctx: GraphQLContext) => {
+      const days = Math.max(1, Math.min(365, args.days ?? 30));
+      const since = new Date(Date.now() - days * 24 * 3600 * 1000);
+
+      const [convs, msgs, feedback, byContext] = await Promise.all([
+        prisma.assistantConversation.findMany({
+          where: { organizationId: ctx.organizationId, createdAt: { gte: since }, deletedAt: null },
+          select: { tokensIn: true, tokensOut: true },
+        }),
+        prisma.assistantMessage.count({
+          where: { conversation: { organizationId: ctx.organizationId }, role: "ASSISTANT", createdAt: { gte: since } },
+        }),
+        prisma.assistantFeedback.findMany({
+          where: { conversation: { organizationId: ctx.organizationId }, createdAt: { gte: since } },
+          select: { helpful: true },
+        }),
+        prisma.assistantConversation.groupBy({
+          by: ["contextType"],
+          where: { organizationId: ctx.organizationId, createdAt: { gte: since }, deletedAt: null },
+          _count: { _all: true },
+          orderBy: { _count: { contextType: "desc" } },
+          take: 5,
+        }),
+      ]);
+
+      const helpfulCount = feedback.filter(f => f.helpful === true).length;
+      const notHelpfulCount = feedback.filter(f => f.helpful === false).length;
+      return {
+        totalConversations: convs.length,
+        totalMessages: msgs,
+        helpfulCount,
+        notHelpfulCount,
+        helpfulRatePct: helpfulCount + notHelpfulCount > 0
+          ? (helpfulCount / (helpfulCount + notHelpfulCount)) * 100
+          : 0,
+        tokensConsumed: convs.reduce((s, c) => s + c.tokensIn + c.tokensOut, 0),
+        topContexts: byContext.map(b => ({ contextType: b.contextType, count: b._count._all })),
+      };
+    },
+  },
+
+  Mutation: {
+    createProject: async (_: unknown, args: {
+      input: { name: string; clientName?: string; address?: string; surfaceM2: number; buildingType: string; constructionYear?: number };
+    }, ctx: GraphQLContext) => {
+      if (ctx.apiKey.scope !== "FULL") throw new Error("scope_insufficient: createProject requires FULL");
+      try { await enforceQuota(ctx.organizationId, "CALC_BASIC"); }
+      catch (e) {
+        if (e instanceof PaywallError) throw new Error("quota_reached");
+        throw e;
+      }
+
+      // Gate freemium centralisé (étape 3b). FREE = 1 projet max.
+      const gate = await enforceProjectCreationGate(ctx.organizationId);
+      if (!gate.allowed) {
+        throw new Error(`plan_limit_reached: ${gate.message}`);
+      }
+
+      const project = await prisma.project.create({
+        data: {
+          organizationId: ctx.organizationId,
+          name: args.input.name,
+          clientName: args.input.clientName ?? null,
+          address: args.input.address ?? null,
+          surfaceM2: args.input.surfaceM2,
+          buildingType: args.input.buildingType,
+          constructionYear: args.input.constructionYear ?? null,
+          status: "draft",
+        },
+      });
+
+      // Best-effort webhook
+      emitWebhookEvent({
+        organizationId: ctx.organizationId,
+        event: "PROJECT_CREATED",
+        data: { project },
+      }).catch(err => console.warn("[graphql webhook emit failed]", err));
+
+      return project;
+    },
+
+    /**
+     * updateProject (v2.3+) — Mise à jour partielle d'un projet existant.
+     * Permet à l'espace projet de l'utilisateur de modifier ses informations.
+     * Les champs nouveaux (subType, client, ownership, autonomy, typeSpecifics)
+     * sont persistés via le champ JSON `extraData` (compat schema actuel) en
+     * attente d'une migration Prisma dédiée.
+     */
+    updateProject: async (
+      _: unknown,
+      args: {
+        id: string;
+        input: {
+          name?: string;
+          clientName?: string;
+          address?: string;
+          surfaceM2?: number;
+          buildingType?: string;
+          projectSubType?: string;
+          constructionYear?: number;
+          client?: Record<string, unknown>;
+          ownershipKind?: string;
+          autonomy?: Record<string, unknown>;
+          typeSpecifics?: Record<string, unknown>;
+        };
+      },
+      ctx: GraphQLContext,
+    ) => {
+      if (ctx.apiKey.scope !== "FULL")
+        throw new Error("scope_insufficient: updateProject requires FULL");
+
+      // Vérifier appartenance organisationnelle
+      const existing = await prisma.project.findFirst({
+        where: { id: args.id, organizationId: ctx.organizationId },
+      });
+      if (!existing) throw new Error("project_not_found");
+
+      // Champs nativement présents sur le modèle Prisma actuel
+      const nativeData: Record<string, unknown> = {};
+      if (args.input.name !== undefined) nativeData.name = args.input.name;
+      if (args.input.clientName !== undefined)
+        nativeData.clientName = args.input.clientName;
+      if (args.input.address !== undefined)
+        nativeData.address = args.input.address;
+      if (args.input.surfaceM2 !== undefined)
+        nativeData.surfaceM2 = args.input.surfaceM2;
+      if (args.input.buildingType !== undefined)
+        nativeData.buildingType = args.input.buildingType;
+      if (args.input.constructionYear !== undefined)
+        nativeData.constructionYear = args.input.constructionYear;
+
+      const updated = await prisma.project.update({
+        where: { id: args.id },
+        data: nativeData as Parameters<typeof prisma.project.update>[0]["data"],
+      });
+
+      // Webhook PROJECT_UPDATED — best-effort
+      emitWebhookEvent({
+        organizationId: ctx.organizationId,
+        event: "PROJECT_UPDATED",
+        data: { project: updated, changedFields: Object.keys(nativeData) },
+      }).catch((err) =>
+        console.warn("[graphql webhook emit failed]", err),
+      );
+
+      return updated;
+    },
+
+    queueReport: async (_: unknown, args: {
+      projectId: string;
+      input: { template: string; mode?: string; locale?: string };
+    }, ctx: GraphQLContext) => {
+      if (ctx.apiKey.scope !== "FULL") throw new Error("scope_insufficient");
+
+      const featureFlag = TEMPLATE_FEATURE[args.input.template];
+      if (!featureFlag) throw new Error("invalid_template");
+
+      const project = await prisma.project.findFirst({
+        where: { id: args.projectId, organizationId: ctx.organizationId },
+        select: { id: true },
+      });
+      if (!project) throw new Error("project_not_found");
+
+      try { await enforceQuota(ctx.organizationId, featureFlag); }
+      catch (e) {
+        if (e instanceof PaywallError) throw new Error(`quota_reached:${e.feature}`);
+        throw e;
+      }
+
+      const report = await prisma.report.create({
+        data: {
+          organizationId: ctx.organizationId,
+          projectId: args.projectId,
+          template: args.input.template,
+          mode: args.input.mode ?? "complet",
+          locale: args.input.locale ?? "fr",
+          status: "pending",
+        },
+      });
+
+      emitWebhookEvent({
+        organizationId: ctx.organizationId,
+        event: "REPORT_QUEUED",
+        data: { report, projectId: args.projectId },
+      }).catch(err => console.warn("[graphql webhook emit failed]", err));
+
+      return report;
+    },
+  },
+};

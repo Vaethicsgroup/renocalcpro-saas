@@ -1,0 +1,229 @@
+// app/[locale]/(public)/fonctionnalites/page.tsx — Page fonctionnalités premium v2.0
+// Tour des features avec ancres scrollables.
+
+import { setRequestLocale } from "next-intl/server";
+import Link from "next/link";
+
+interface Props { params: Promise<{ locale: string }> }
+
+const SECTIONS = [
+  {
+    id: "diagnostic",
+    icon: "🔍",
+    title: "Diagnostic complet du bâti",
+    pitch: "Cartographiez précisément l'existant : matériaux, isolation, systèmes, déperditions.",
+    features: [
+      "Bibliothèque de 100+ matériaux du bâti (pierre, brique, parpaing, pisé, etc.)",
+      "Identification IA par photo (Claude Vision) avec top-3 + niveau de confiance",
+      "Calcul des résistances thermiques par paroi (R, U, valeurs hygrométriques)",
+      "Détection automatique des ponts thermiques visibles",
+      "Modèle de confiance traçable (observé / estimé / supposé / inconnu)",
+    ],
+  },
+  {
+    id: "scenarios",
+    icon: "📊",
+    title: "Scénarios de rénovation chiffrés",
+    pitch: "Comparez plusieurs bouquets de travaux avec leur ROI, gain DPE et confort.",
+    features: [
+      "Génération automatique de 3 scénarios (geste rentable / bouquet équilibré / rénovation globale)",
+      "Étiquette DPE simulée avant/après par scénario",
+      "Calcul du confort hiver et été (jauges visuelles)",
+      "Estimation des économies sur 20 ans (timeline interactive)",
+      "Comparateur côte à côte avec différentiel chiffré",
+    ],
+  },
+  {
+    id: "aides",
+    icon: "💶",
+    title: "Calcul des aides mobilisables",
+    pitch: "Toutes les aides nationales et locales calculées automatiquement.",
+    features: [
+      "MaPrimeRénov' (toutes catégories Bleu/Jaune/Violet/Rose)",
+      "Coup de pouce CEE (chauffage, isolation)",
+      "Éco-PTZ jusqu'à 50 000 €",
+      "TVA réduite 5,5 %",
+      "Aides régionales et EPCI (base 2 500+ dispositifs)",
+      "Reste à charge calculé en temps réel",
+    ],
+  },
+  {
+    id: "rapports",
+    icon: "📄",
+    title: "Rapports PDF premium",
+    pitch: "Documents professionnels conformes prêts à imprimer ou envoyer.",
+    features: [
+      "4 templates : Audit particulier / DPE collectif / Audit copropriété / Audit tertiaire",
+      "Marque blanche (logo cabinet, couleurs, mentions)",
+      "Sections riches : photos, étiquette DPE, scénarios, aides, signatures auditeur",
+      "Conforme arrêté du 4 mai 2022",
+      "Export Excel + IFC (BIM) en complément",
+    ],
+  },
+  {
+    id: "assistant",
+    icon: "🤖",
+    title: "Assistant IA métier intégré",
+    pitch: "Un expert virtuel qui guide chaque étape du diagnostic.",
+    features: [
+      "100+ champs documentés (que mettre / comment mesurer / pourquoi utile)",
+      "Reconnaissance assistée des matériaux et systèmes",
+      "Comparateurs aide au choix (isolant, chauffage, ventilation, vitrage)",
+      "Adapté à 7 personas (particulier, auditeur, diagnostiqueur, artisan, BE, accompagnateur, agence)",
+      "Saisie vocale (Whisper) pour gagner du temps en visite terrain",
+      "5 langues : FR / EN / ES / DE / PT",
+    ],
+  },
+  {
+    id: "collaboration",
+    icon: "👥",
+    title: "Collaboration et portail client",
+    pitch: "Travaillez en équipe et impliquez vos clients à chaque étape.",
+    features: [
+      "Gestion d'équipe avec rôles (Owner / Admin / Member / Viewer)",
+      "Portail client pour partage sécurisé du dossier",
+      "Commentaires et validations en ligne",
+      "Multi-tenant strict avec isolation des données",
+      "Audit logs complets pour conformité",
+    ],
+  },
+  {
+    id: "api",
+    icon: "🔌",
+    title: "API publique et intégrations",
+    pitch: "Connectez Réno·Calc Pro à votre stack métier.",
+    features: [
+      "API REST v1 + GraphQL avec scope FULL ou READ_ONLY",
+      "Webhooks sortants HMAC-signés (PROJECT_CREATED, REPORT_READY, ASSISTANT_FEEDBACK_RECEIVED, etc.)",
+      "Receivers de référence : Express, Cloudflare Workers, Flask, Spring Boot, Zapier",
+      "Documentation complète multilingue",
+      "Mode sandbox pour tests sans coût",
+    ],
+  },
+  {
+    id: "securite",
+    icon: "🛡️",
+    title: "Sécurité et conformité",
+    pitch: "Vos données sont en sécurité, conformes RGPD, hébergées en France.",
+    features: [
+      "Hébergement intégral en France (OVH Roubaix + Strasbourg)",
+      "Conforme RGPD avec export & suppression sur demande (art. 17 / 20)",
+      "ISO 27001",
+      "Authentification magic-link sécurisée + 2FA TOTP optionnel",
+      "Chiffrement TLS 1.3 partout, audit logs immuables",
+    ],
+  },
+];
+
+export default async function FonctionnalitesPage({ params }: Props) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  return (
+    <main className="bg-cream-50 pb-24">
+      {/* Header */}
+      <header className="mx-auto max-w-4xl px-6 pt-16 text-center md:pt-20">
+        <div className="inline-flex items-center gap-2 rounded-full border border-forest-200 bg-white/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-forest-700">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-forest-500" />
+          Fonctionnalités
+        </div>
+        <h1
+          className="mt-4 font-serif text-4xl font-bold leading-tight tracking-tight text-forest-900 md:text-5xl lg:text-6xl"
+          style={{ fontFamily: "Source Serif 4, Georgia, serif" }}
+        >
+          Tout ce dont vous avez besoin pour la rénovation énergétique
+        </h1>
+        <p className="mt-5 text-lg leading-relaxed text-forest-900/70">
+          Une plateforme complète qui couvre l'intégralité du parcours d'audit, du diagnostic au rapport final.
+        </p>
+      </header>
+
+      {/* Quick nav (ancres) */}
+      <nav aria-label="Navigation fonctionnalités" className="mx-auto mt-10 max-w-7xl px-6">
+        <div className="flex flex-wrap justify-center gap-1.5 rounded-2xl border border-cream-300 bg-white p-2.5 shadow-card">
+          {SECTIONS.map(s => (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-forest-900/75 transition hover:bg-cream-100 hover:text-forest-700"
+            >
+              <span aria-hidden>{s.icon}</span>
+              <span>{s.title}</span>
+            </a>
+          ))}
+        </div>
+      </nav>
+
+      {/* Sections détaillées */}
+      <div className="mx-auto mt-16 max-w-7xl px-6 space-y-20">
+        {SECTIONS.map((s, i) => (
+          <section
+            key={s.id}
+            id={s.id}
+            className="grid gap-10 scroll-mt-20 lg:grid-cols-[1fr_1.2fr] lg:gap-16"
+          >
+            {/* Texte */}
+            <div className={i % 2 === 1 ? "lg:order-2" : ""}>
+              <div className="inline-flex items-center gap-2 rounded-full bg-forest-100 px-3 py-1.5 text-xs font-semibold text-forest-800">
+                <span aria-hidden>{s.icon}</span>
+                <span>{s.title.split(" ").slice(0, 2).join(" ")}</span>
+              </div>
+              <h2
+                className="mt-4 font-serif text-3xl font-bold tracking-tight text-forest-900 md:text-4xl"
+                style={{ fontFamily: "Source Serif 4, Georgia, serif" }}
+              >
+                {s.title}
+              </h2>
+              <p className="mt-3 text-lg leading-relaxed text-forest-900/70">{s.pitch}</p>
+            </div>
+
+            {/* Features list — visuelle */}
+            <div className={i % 2 === 1 ? "lg:order-1" : ""}>
+              <ul className="grid gap-3 rounded-2xl border border-cream-300 bg-white p-6 shadow-card sm:p-8">
+                {s.features.map(f => (
+                  <li key={f} className="flex items-start gap-3 text-sm text-forest-900/85">
+                    <span aria-hidden className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-forest-100 text-2xs font-bold text-forest-700">
+                      ✓
+                    </span>
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        ))}
+      </div>
+
+      {/* CTA bottom */}
+      <section className="mx-auto mt-24 max-w-3xl px-6 text-center">
+        <div className="rounded-3xl border border-forest-200 bg-gradient-to-br from-cream-100 via-cream-50 to-forest-50 p-8 shadow-elevated">
+          <p className="text-3xl" aria-hidden>🚀</p>
+          <h3 className="mt-3 font-serif text-2xl font-bold text-forest-900 md:text-3xl" style={{ fontFamily: "Source Serif 4, Georgia, serif" }}>
+            Démarrez votre premier diagnostic en 5 minutes
+          </h3>
+          <p className="mx-auto mt-2.5 max-w-md text-sm leading-relaxed text-forest-900/70">
+            Essai gratuit 14 jours, sans carte bancaire, toutes les fonctionnalités débloquées.
+          </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <Link
+              href={`/${locale}/auth/signup`}
+              className="inline-flex h-11 items-center justify-center rounded-md bg-teal-700 px-6 text-sm font-semibold text-white hover:bg-teal-800"
+            >
+              Créer mon projet gratuitement
+            </Link>
+            <Link
+              href={`/${locale}/tarifs`}
+              className="inline-flex h-11 items-center justify-center rounded-md border border-stone-300 bg-white px-6 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+            >
+              Voir les tarifs
+            </Link>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+export const metadata = {
+  title: "Fonctionnalités — Réno·Calc Pro",
+  description: "Diagnostic, scénarios, aides, rapports, assistant IA, API, sécurité — toutes les fonctionnalités de la plateforme.",
+};

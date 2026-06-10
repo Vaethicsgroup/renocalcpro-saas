@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Splash : 1200×1200 — affiché au lancement PWA / app mobile -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200">
+  <rect width="1200" height="1200" fill="#115e59"/>
+  <g transform="translate(600 600)">
+    <g transform="translate(-180 -240)">
+      <!-- Maison taille 360×360 centrée -->
+      <path d="M0 180 L180 0 L360 180 L360 220 L180 20 L0 220 Z" fill="#fbbf24"/>
+      <rect x="40" y="180" width="280" height="220" rx="10" fill="#fafaf9"/>
+      <rect x="80" y="220" width="80" height="80" rx="4" fill="#115e59"/>
+      <rect x="200" y="220" width="80" height="80" rx="4" fill="#115e59"/>
+      <rect x="160" y="320" width="60" height="80" rx="4" fill="#a16207"/>
+    </g>
+    <text x="0" y="220" font-family="Source Serif 4, Georgia, serif" font-size="64" font-weight="700" text-anchor="middle" fill="#fafaf9">Réno·Calc Pro</text>
+    <text x="0" y="262" font-family="-apple-system, sans-serif" font-size="22" text-anchor="middle" fill="#d6f5f0">Audits & rapports premium</text>
+  </g>
+</svg>

@@ -1,0 +1,1305 @@
+// app/[locale]/p/projects/new/page.tsx — Wizard création projet particulier v1.0
+// « Lot 1 audit fonctionnel » : premier vrai parcours de saisie bâtiment
+// branché sur le moteur de calcul existant.
+//
+// Architecture :
+//   - 7 étapes mobile-first (stepper visuel + sticky CTA bar)
+//   - State machine en useState (pas de URL params côté client)
+//   - Au step 7, appel server action `submitCalcForm` → moteur → ProjectResult
+//   - Rendu inline du résultat (DPE, GES, scénarios, aides) sans nouvelle route
+//
+// Périmètre strict :
+//   - aucune migration Prisma (ProjectCalcSnapshot existe déjà)
+//   - aucun touch moteur (utilise types + formToBuildingInputs existants)
+//   - aucun touch billing logic (gate fire pas ici — wizard ne crée pas de Project)
+//   - aucun touch PDF (lien différé)
+//   - aucun touch auth (anonymous user → snapshot persiste si DB dispo)
+//   - aucun touch routes API
+//
+// DA Energy Trust : fond cream-50, halo discret, cards blanches bordure cream,
+// titres bleu nuit, CTAs vert énergie / orange solaire upgrade.
+
+"use client";
+
+import { useState, useTransition } from "react";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Sparkles,
+  Check,
+  Loader2,
+  AlertTriangle,
+  ClipboardList,
+  Home,
+  Layers,
+  Settings,
+  Users,
+  Target,
+  Calculator,
+  type LucideIcon,
+} from "lucide-react";
+import { useLocale } from "next-intl";
+import { OnboardingStepper } from "@/components/onboarding/OnboardingStepper";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { FormField, Input, Select } from "@/components/ui/Input";
+import { DPELabel } from "@/components/results/DPELabel";
+import {
+  computeFromForm,
+  type ComputeFromFormResult,
+} from "@/server/actions/calcForm";
+import type { BuildingFormData } from "@/lib/calc/form/schema";
+import type { ProjectResult } from "@/lib/calc";
+
+// ─── Schéma initial ────────────────────────────────────────────────────────
+
+const STEPS: ReadonlyArray<{ key: string; label: string; Icon: LucideIcon }> =
+  [
+    { key: "context",    label: "Contexte",   Icon: ClipboardList },
+    { key: "geometry",   label: "Géométrie",  Icon: Home },
+    { key: "envelope",   label: "Enveloppe",  Icon: Layers },
+    { key: "systems",    label: "Systèmes",   Icon: Settings },
+    { key: "household",  label: "Foyer",      Icon: Users },
+    { key: "scenarios",  label: "Scénarios",  Icon: Target },
+    { key: "compute",    label: "Calculer",   Icon: Calculator },
+  ];
+
+const INITIAL_FORM: BuildingFormData = {
+  projectName: "Mon premier diagnostic",
+  buildingType: "MAISON_INDIV",
+  constructionPeriod: "1975_1981",
+  climateZone: "H1a",
+  altitudeM: 100,
+  surfaceHabitableM2: 110,
+  hauteurSousPlafondM: 2.5,
+  niveauCount: 1,
+  wallSurfaceM2: 130,
+  roofSurfaceM2: 70,
+  floorSurfaceM2: 60,
+  windowSurfaceM2: 18,
+  windowGlazing: "DOUBLE_AIR",
+  heatingKind: "CHAUDIERE_GAZ_STD",
+  heatingInstallYear: undefined,
+  dhwKind: "BALLON_ELEC",
+  ventilationKind: "VMC_SF_AUTO",
+  occupants: 3,
+  setpointWinterC: 19,
+  householdSize: 3,
+  householdRfrEur: undefined,
+  householdIdf: false,
+  scenariosEnabled: {
+    isolationOnly: true,
+    heatingOnly: false,
+    global: true,
+  },
+};
+
+// ─── Options vivantes (labels FR) ──────────────────────────────────────────
+
+const BUILDING_TYPES: ReadonlyArray<{
+  value: BuildingFormData["buildingType"];
+  label: string;
+}> = [
+  { value: "MAISON_INDIV",           label: "Maison individuelle" },
+  { value: "APPARTEMENT",            label: "Appartement" },
+  { value: "COPRO_PARTIES_COMMUNES", label: "Copropriété (parties communes)" },
+  { value: "TERTIAIRE_BUREAU",       label: "Tertiaire — bureau" },
+  { value: "TERTIAIRE_COMMERCE",     label: "Tertiaire — commerce" },
+];
+
+const PERIODS: ReadonlyArray<{
+  value: BuildingFormData["constructionPeriod"];
+  label: string;
+}> = [
+  { value: "AVANT_1948",  label: "Avant 1948" },
+  { value: "1948_1974",   label: "1948 — 1974" },
+  { value: "1975_1981",   label: "1975 — 1981 (1ère RT)" },
+  { value: "1982_1988",   label: "1982 — 1988" },
+  { value: "1989_2000",   label: "1989 — 2000" },
+  { value: "2001_2005",   label: "2001 — 2005" },
+  { value: "2006_2012",   label: "2006 — 2012 (RT 2005)" },
+  { value: "2013_2020",   label: "2013 — 2020 (RT 2012)" },
+  { value: "2021_PLUS",   label: "2021 ou après (RE 2020)" },
+];
+
+const CLIMATE_ZONES: ReadonlyArray<{
+  value: BuildingFormData["climateZone"];
+  label: string;
+}> = [
+  { value: "H1a", label: "H1a — Nord-Est, Île-de-France" },
+  { value: "H1b", label: "H1b — Nord-Ouest, Bretagne, Normandie" },
+  { value: "H1c", label: "H1c — Centre, Bourgogne" },
+  { value: "H2a", label: "H2a — Ouest Atlantique" },
+  { value: "H2b", label: "H2b — Centre-Ouest, Limousin" },
+  { value: "H2c", label: "H2c — Sud-Ouest" },
+  { value: "H2d", label: "H2d — Sud-Est, Rhône-Alpes" },
+  { value: "H3",  label: "H3 — Méditerranée" },
+];
+
+const GLAZINGS: ReadonlyArray<{
+  value: BuildingFormData["windowGlazing"];
+  label: string;
+}> = [
+  { value: "SIMPLE",        label: "Simple vitrage" },
+  { value: "DOUBLE_AIR",    label: "Double vitrage (air)" },
+  { value: "DOUBLE_ARGON",  label: "Double vitrage (argon)" },
+  { value: "TRIPLE",        label: "Triple vitrage" },
+];
+
+const HEATINGS: ReadonlyArray<{
+  value: BuildingFormData["heatingKind"];
+  label: string;
+}> = [
+  { value: "CHAUDIERE_GAZ_STD",     label: "Chaudière gaz (standard)" },
+  { value: "CHAUDIERE_GAZ_COND",    label: "Chaudière gaz à condensation" },
+  { value: "CHAUDIERE_FIOUL",       label: "Chaudière fioul" },
+  { value: "CHAUDIERE_BOIS_BUCHE",  label: "Chaudière bois bûches" },
+  { value: "CHAUDIERE_BOIS_GRANUL", label: "Chaudière granulés" },
+  { value: "PAC_AIR_AIR",           label: "Pompe à chaleur air/air" },
+  { value: "PAC_AIR_EAU",           label: "Pompe à chaleur air/eau" },
+  { value: "PAC_GEO",               label: "Pompe à chaleur géothermique" },
+  { value: "RADIATEUR_ELEC",        label: "Radiateurs électriques (anciens)" },
+  { value: "CONVECTEUR_ELEC_NG",    label: "Panneaux rayonnants (nouvelle génération)" },
+  { value: "POELE_BOIS_BUCHE",      label: "Poêle bois bûches" },
+  { value: "POELE_GRANUL",          label: "Poêle à granulés" },
+  { value: "RES_CHALEUR_URBAIN",    label: "Réseau de chaleur urbain" },
+  { value: "INSERT_CHEMINEE",       label: "Insert cheminée" },
+];
+
+const DHWS: ReadonlyArray<{
+  value: BuildingFormData["dhwKind"];
+  label: string;
+}> = [
+  { value: "BALLON_ELEC",            label: "Ballon électrique" },
+  { value: "BALLON_THERMODYN",       label: "Ballon thermodynamique" },
+  { value: "CHAUDIERE_INTEGREE",     label: "Intégré à la chaudière" },
+  { value: "SOLAIRE_THERM_APPOINT",  label: "Solaire thermique avec appoint" },
+  { value: "GAZ_INSTANT",            label: "Gaz instantané" },
+];
+
+const VENTILATIONS: ReadonlyArray<{
+  value: BuildingFormData["ventilationKind"];
+  label: string;
+}> = [
+  { value: "ABSENTE",         label: "Aucune ventilation mécanique" },
+  { value: "NATURELLE",       label: "Ventilation naturelle (grilles)" },
+  { value: "VMC_SF_AUTO",     label: "VMC simple flux autoréglable" },
+  { value: "VMC_SF_HYGRO_A",  label: "VMC simple flux hygro A" },
+  { value: "VMC_SF_HYGRO_B",  label: "VMC simple flux hygro B" },
+  { value: "VMC_DF",          label: "VMC double flux" },
+  { value: "VMI",             label: "VMI (insufflation)" },
+];
+
+// ─── État submit ───────────────────────────────────────────────────────────
+
+type SubmitState =
+  | { status: "idle" }
+  | { status: "submitting" }
+  | { status: "error"; message: string; fieldErrors?: Array<{ field: string; message: string }> }
+  | { status: "success"; result: ProjectResult };
+
+// ─── Page Wizard ───────────────────────────────────────────────────────────
+
+export default function NewProjectWizardPage() {
+  const locale = useLocale();
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState<BuildingFormData>(INITIAL_FORM);
+  const [submit, setSubmit] = useState<SubmitState>({ status: "idle" });
+  const [isPending, startTransition] = useTransition();
+
+  const updateForm = <K extends keyof BuildingFormData>(
+    key: K,
+    value: BuildingFormData[K],
+  ) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const updateScenario = (
+    key: keyof BuildingFormData["scenariosEnabled"],
+    value: boolean,
+  ) => {
+    setForm((prev) => ({
+      ...prev,
+      scenariosEnabled: { ...prev.scenariosEnabled, [key]: value },
+    }));
+  };
+
+  const handleNext = () => {
+    if (step < STEPS.length - 1) setStep(step + 1);
+  };
+  const handlePrev = () => {
+    if (step > 0) setStep(step - 1);
+  };
+
+  const handleSubmit = () => {
+    startTransition(async () => {
+      setSubmit({ status: "submitting" });
+      try {
+        // organizationId et projectId optionnels : si absents → calcul sans
+        // persistance (fail-soft).
+        const res: ComputeFromFormResult = await computeFromForm(form);
+        if (res.ok) {
+          setSubmit({ status: "success", result: res.result });
+        } else {
+          setSubmit({
+            status: "error",
+            message: res.error,
+            fieldErrors: res.fieldErrors,
+          });
+        }
+      } catch (err) {
+        setSubmit({
+          status: "error",
+          message:
+            err instanceof Error
+              ? err.message
+              : "Erreur inattendue lors du calcul.",
+        });
+      }
+    });
+  };
+
+  // ─── Sticky CTA bar ────────────────────────────────────────────────
+  const isLastStep = step === STEPS.length - 1;
+  const ctaLabel = isLastStep ? "Calculer mon diagnostic" : "Continuer";
+  const ctaIcon = isLastStep ? Sparkles : ArrowRight;
+  const CtaIcon = ctaIcon;
+
+  // ─── Result rendering inline (après submit success) ────────────────
+  if (submit.status === "success") {
+    return <ResultView locale={locale} form={form} result={submit.result} />;
+  }
+
+  return (
+    <div className="relative min-h-screen bg-cream-50 pb-32 pt-6 sm:pb-24 sm:pt-10">
+      {/* Halo discret vert énergie en haut */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[400px] overflow-hidden"
+      >
+        <div className="absolute -top-32 left-1/2 h-72 w-[600px] -translate-x-1/2 rounded-full bg-forest-100/40 blur-3xl sm:h-96 sm:w-[800px]" />
+      </div>
+
+      <div className="relative mx-auto max-w-2xl px-4 sm:px-6">
+        {/* Header */}
+        <header className="mb-6 text-center">
+          <p className="inline-flex items-center gap-2 rounded-full border border-cream-300 bg-white/85 px-3 py-1.5 text-2xs font-semibold uppercase tracking-wider text-forest-700 shadow-soft">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-forest-500" />
+            Nouveau diagnostic
+          </p>
+          <h1
+            className="mt-3 font-serif text-2xl font-bold tracking-tight text-night-800 sm:text-3xl md:text-4xl"
+            style={{ fontFamily: "Source Serif 4, Georgia, serif" }}
+          >
+            Décrivez votre logement
+          </h1>
+          <p className="mt-2 text-sm text-stone-600">
+            7 étapes pour obtenir une estimation DPE, des scénarios travaux et
+            les aides mobilisables.
+          </p>
+        </header>
+
+        {/* Stepper compact mobile */}
+        <div className="mb-6 overflow-x-auto pb-2">
+          <OnboardingStepper
+            steps={STEPS.map((s) => ({ key: s.key, label: s.label }))}
+            currentStep={step}
+          />
+        </div>
+
+        {/* Étape courante */}
+        <div className="space-y-4">
+          {step === 0 && (
+            <StepContext form={form} updateForm={updateForm} />
+          )}
+          {step === 1 && (
+            <StepGeometry form={form} updateForm={updateForm} />
+          )}
+          {step === 2 && (
+            <StepEnvelope form={form} updateForm={updateForm} />
+          )}
+          {step === 3 && (
+            <StepSystems form={form} updateForm={updateForm} />
+          )}
+          {step === 4 && (
+            <StepHousehold form={form} updateForm={updateForm} />
+          )}
+          {step === 5 && (
+            <StepScenarios form={form} updateScenario={updateScenario} />
+          )}
+          {step === 6 && (
+            <StepReview
+              form={form}
+              submit={submit}
+              isPending={isPending}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* CTA bar sticky bottom */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-cream-300 bg-white/95 px-4 py-3 shadow-floating backdrop-blur-sm sm:px-6">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
+          {step > 0 ? (
+            <Button
+              variant="ghost"
+              size="md"
+              onClick={handlePrev}
+              disabled={isPending || submit.status === "submitting"}
+              iconLeft={<ArrowLeft className="h-4 w-4" strokeWidth={2} aria-hidden />}
+            >
+              Retour
+            </Button>
+          ) : (
+            <Link
+              href={`/${locale}/p/dashboard`}
+              className="inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold text-stone-700 transition-colors hover:bg-cream-100"
+            >
+              Annuler
+            </Link>
+          )}
+
+          {isLastStep ? (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleSubmit}
+              loading={isPending || submit.status === "submitting"}
+              iconRight={<CtaIcon className="h-4 w-4" strokeWidth={2} aria-hidden />}
+            >
+              {ctaLabel}
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleNext}
+              iconRight={<CtaIcon className="h-4 w-4" strokeWidth={2} aria-hidden />}
+            >
+              {ctaLabel}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step components ───────────────────────────────────────────────────────
+
+interface StepProps {
+  form: BuildingFormData;
+  updateForm: <K extends keyof BuildingFormData>(
+    key: K,
+    value: BuildingFormData[K],
+  ) => void;
+}
+
+function StepContext({ form, updateForm }: StepProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Identification &amp; contexte</CardTitle>
+        <CardDescription>
+          Donnez un nom à votre projet et précisez le contexte général du
+          logement.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4">
+          <FormField label="Nom du projet" htmlFor="projectName" required>
+            <Input
+              id="projectName"
+              value={form.projectName}
+              onChange={(e) => updateForm("projectName", e.target.value)}
+              placeholder="Ex : Maison Limoges"
+            />
+          </FormField>
+          <FormField label="Type de bâtiment" htmlFor="buildingType" required>
+            <Select
+              id="buildingType"
+              value={form.buildingType}
+              onChange={(e) =>
+                updateForm("buildingType", e.target.value as BuildingFormData["buildingType"])
+              }
+            >
+              {BUILDING_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField
+            label="Période de construction"
+            htmlFor="constructionPeriod"
+            required
+            helper="Permet d'utiliser les valeurs réglementaires par défaut."
+          >
+            <Select
+              id="constructionPeriod"
+              value={form.constructionPeriod}
+              onChange={(e) =>
+                updateForm(
+                  "constructionPeriod",
+                  e.target.value as BuildingFormData["constructionPeriod"],
+                )
+              }
+            >
+              {PERIODS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField
+            label="Zone climatique"
+            htmlFor="climateZone"
+            required
+            helper="Si vous ne savez pas, sélectionnez la région la plus proche."
+          >
+            <Select
+              id="climateZone"
+              value={form.climateZone}
+              onChange={(e) =>
+                updateForm(
+                  "climateZone",
+                  e.target.value as BuildingFormData["climateZone"],
+                )
+              }
+            >
+              {CLIMATE_ZONES.map((z) => (
+                <option key={z.value} value={z.value}>
+                  {z.label}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StepGeometry({ form, updateForm }: StepProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Géométrie du logement</CardTitle>
+        <CardDescription>
+          Surface habitable et hauteur — les valeurs principales pour le moteur.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            label="Surface habitable (m²)"
+            htmlFor="surfaceHabitableM2"
+            required
+          >
+            <Input
+              id="surfaceHabitableM2"
+              type="number"
+              min={1}
+              max={10000}
+              value={form.surfaceHabitableM2}
+              onChange={(e) =>
+                updateForm("surfaceHabitableM2", Number(e.target.value))
+              }
+            />
+          </FormField>
+          <FormField
+            label="Hauteur sous plafond (m)"
+            htmlFor="hauteurSousPlafondM"
+            helper="Approximation OK (défaut 2,5 m)."
+          >
+            <Input
+              id="hauteurSousPlafondM"
+              type="number"
+              step="0.1"
+              min={2}
+              max={6}
+              value={form.hauteurSousPlafondM}
+              onChange={(e) =>
+                updateForm("hauteurSousPlafondM", Number(e.target.value))
+              }
+            />
+          </FormField>
+          <FormField
+            label="Nombre de niveaux"
+            htmlFor="niveauCount"
+            helper="Combles aménagés inclus."
+          >
+            <Input
+              id="niveauCount"
+              type="number"
+              min={1}
+              max={30}
+              value={form.niveauCount}
+              onChange={(e) =>
+                updateForm("niveauCount", Number(e.target.value))
+              }
+            />
+          </FormField>
+          <FormField
+            label="Altitude (m)"
+            htmlFor="altitudeM"
+            helper="Approximation acceptée."
+          >
+            <Input
+              id="altitudeM"
+              type="number"
+              min={0}
+              max={3000}
+              value={form.altitudeM}
+              onChange={(e) =>
+                updateForm("altitudeM", Number(e.target.value))
+              }
+            />
+          </FormField>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StepEnvelope({ form, updateForm }: StepProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Enveloppe — surfaces déperditives</CardTitle>
+        <CardDescription>
+          Surfaces approchées suffisent : le moteur utilise les valeurs
+          conventionnelles par période quand le détail manque.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            label="Murs extérieurs (m²)"
+            htmlFor="wallSurfaceM2"
+            helper="Estimation : périmètre × hauteur, moins ouvertures."
+          >
+            <Input
+              id="wallSurfaceM2"
+              type="number"
+              min={0}
+              value={form.wallSurfaceM2}
+              onChange={(e) =>
+                updateForm("wallSurfaceM2", Number(e.target.value))
+              }
+            />
+          </FormField>
+          <FormField
+            label="Toiture / combles (m²)"
+            htmlFor="roofSurfaceM2"
+            helper="Surface déperditive vers l'extérieur."
+          >
+            <Input
+              id="roofSurfaceM2"
+              type="number"
+              min={0}
+              value={form.roofSurfaceM2}
+              onChange={(e) =>
+                updateForm("roofSurfaceM2", Number(e.target.value))
+              }
+            />
+          </FormField>
+          <FormField
+            label="Plancher bas (m²)"
+            htmlFor="floorSurfaceM2"
+            helper="Sur vide sanitaire / sous-sol / terre-plein."
+          >
+            <Input
+              id="floorSurfaceM2"
+              type="number"
+              min={0}
+              value={form.floorSurfaceM2}
+              onChange={(e) =>
+                updateForm("floorSurfaceM2", Number(e.target.value))
+              }
+            />
+          </FormField>
+          <FormField
+            label="Surface vitrée totale (m²)"
+            htmlFor="windowSurfaceM2"
+          >
+            <Input
+              id="windowSurfaceM2"
+              type="number"
+              min={0}
+              value={form.windowSurfaceM2}
+              onChange={(e) =>
+                updateForm("windowSurfaceM2", Number(e.target.value))
+              }
+            />
+          </FormField>
+        </div>
+        <div className="mt-4">
+          <FormField label="Type de vitrage principal" htmlFor="windowGlazing">
+            <Select
+              id="windowGlazing"
+              value={form.windowGlazing}
+              onChange={(e) =>
+                updateForm(
+                  "windowGlazing",
+                  e.target.value as BuildingFormData["windowGlazing"],
+                )
+              }
+            >
+              {GLAZINGS.map((g) => (
+                <option key={g.value} value={g.value}>
+                  {g.label}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StepSystems({ form, updateForm }: StepProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Systèmes techniques</CardTitle>
+        <CardDescription>
+          Chauffage, eau chaude et ventilation présents aujourd&apos;hui.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4">
+          <FormField label="Chauffage principal" htmlFor="heatingKind" required>
+            <Select
+              id="heatingKind"
+              value={form.heatingKind}
+              onChange={(e) =>
+                updateForm(
+                  "heatingKind",
+                  e.target.value as BuildingFormData["heatingKind"],
+                )
+              }
+            >
+              {HEATINGS.map((h) => (
+                <option key={h.value} value={h.value}>
+                  {h.label}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField
+            label="Année d'installation du chauffage (optionnel)"
+            htmlFor="heatingInstallYear"
+          >
+            <Input
+              id="heatingInstallYear"
+              type="number"
+              min={1900}
+              max={2030}
+              value={form.heatingInstallYear ?? ""}
+              onChange={(e) =>
+                updateForm(
+                  "heatingInstallYear",
+                  e.target.value ? Number(e.target.value) : undefined,
+                )
+              }
+              placeholder="ex : 2008"
+            />
+          </FormField>
+          <FormField
+            label="Production d'eau chaude sanitaire"
+            htmlFor="dhwKind"
+            required
+          >
+            <Select
+              id="dhwKind"
+              value={form.dhwKind}
+              onChange={(e) =>
+                updateForm(
+                  "dhwKind",
+                  e.target.value as BuildingFormData["dhwKind"],
+                )
+              }
+            >
+              {DHWS.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField
+            label="Ventilation"
+            htmlFor="ventilationKind"
+            required
+          >
+            <Select
+              id="ventilationKind"
+              value={form.ventilationKind}
+              onChange={(e) =>
+                updateForm(
+                  "ventilationKind",
+                  e.target.value as BuildingFormData["ventilationKind"],
+                )
+              }
+            >
+              {VENTILATIONS.map((v) => (
+                <option key={v.value} value={v.value}>
+                  {v.label}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StepHousehold({ form, updateForm }: StepProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Foyer &amp; confort</CardTitle>
+        <CardDescription>
+          Informations utiles pour estimer l&apos;ECS et les aides mobilisables.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField label="Occupants" htmlFor="occupants" helper="Estimation OK.">
+            <Input
+              id="occupants"
+              type="number"
+              min={1}
+              max={30}
+              value={form.occupants}
+              onChange={(e) =>
+                updateForm("occupants", Number(e.target.value))
+              }
+            />
+          </FormField>
+          <FormField
+            label="Température cible hiver (°C)"
+            htmlFor="setpointWinterC"
+            helper="Défaut 19 °C."
+          >
+            <Input
+              id="setpointWinterC"
+              type="number"
+              min={14}
+              max={26}
+              value={form.setpointWinterC ?? 19}
+              onChange={(e) =>
+                updateForm("setpointWinterC", Number(e.target.value))
+              }
+            />
+          </FormField>
+          <FormField
+            label="Taille du foyer fiscal"
+            htmlFor="householdSize"
+            required
+            helper="Nombre de personnes au foyer fiscal."
+          >
+            <Input
+              id="householdSize"
+              type="number"
+              min={1}
+              max={15}
+              value={form.householdSize}
+              onChange={(e) =>
+                updateForm("householdSize", Number(e.target.value))
+              }
+            />
+          </FormField>
+          <FormField
+            label="Revenu fiscal de référence (optionnel)"
+            htmlFor="householdRfrEur"
+            helper="En euros — utilisé pour estimer MaPrimeRénov'."
+          >
+            <Input
+              id="householdRfrEur"
+              type="number"
+              min={0}
+              value={form.householdRfrEur ?? ""}
+              onChange={(e) =>
+                updateForm(
+                  "householdRfrEur",
+                  e.target.value ? Number(e.target.value) : undefined,
+                )
+              }
+              placeholder="ex : 28 000"
+            />
+          </FormField>
+        </div>
+        <div className="mt-4">
+          <label className="flex items-start gap-2.5 rounded-lg border border-cream-300 bg-white p-3 text-sm">
+            <input
+              type="checkbox"
+              checked={form.householdIdf}
+              onChange={(e) => updateForm("householdIdf", e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-cream-300 text-forest-600 accent-forest-600"
+            />
+            <span className="text-stone-700">
+              <span className="font-medium text-night-800">
+                Logement situé en Île-de-France
+              </span>
+              <span className="ml-1 text-stone-600">
+                — barèmes MaPrimeRénov&apos; différents.
+              </span>
+            </span>
+          </label>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StepScenarios({
+  form,
+  updateScenario,
+}: {
+  form: BuildingFormData;
+  updateScenario: (
+    key: keyof BuildingFormData["scenariosEnabled"],
+    value: boolean,
+  ) => void;
+}) {
+  const options: ReadonlyArray<{
+    key: keyof BuildingFormData["scenariosEnabled"];
+    title: string;
+    desc: string;
+  }> = [
+    {
+      key: "isolationOnly",
+      title: "Bouquet isolation seule",
+      desc: "Murs, toiture, plancher — sans toucher au chauffage.",
+    },
+    {
+      key: "heatingOnly",
+      title: "Remplacement du chauffage seul",
+      desc: "Substitution équipement, isolation existante conservée.",
+    },
+    {
+      key: "global",
+      title: "Rénovation globale",
+      desc: "Isolation + chauffage + ventilation — saut DPE maximal.",
+    },
+  ];
+
+  const atLeastOne =
+    form.scenariosEnabled.isolationOnly ||
+    form.scenariosEnabled.heatingOnly ||
+    form.scenariosEnabled.global;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Scénarios à comparer</CardTitle>
+        <CardDescription>
+          Sélectionnez au moins un bouquet de travaux à simuler — vous verrez le
+          coût, les aides, le ROI et l&apos;étiquette DPE atteinte.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {options.map((opt) => {
+            const checked = form.scenariosEnabled[opt.key];
+            return (
+              <label
+                key={opt.key}
+                className={[
+                  "flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors",
+                  checked
+                    ? "border-forest-300 bg-forest-50/50"
+                    : "border-cream-300 bg-white hover:border-forest-300",
+                ].join(" ")}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => updateScenario(opt.key, e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-cream-300 text-forest-600 accent-forest-600"
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-night-800">
+                    {opt.title}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-stone-600">
+                    {opt.desc}
+                  </p>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+        {!atLeastOne && (
+          <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-amber-700">
+            <AlertTriangle className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+            Sélectionnez au moins un scénario.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function StepReview({
+  form,
+  submit,
+  isPending,
+}: {
+  form: BuildingFormData;
+  submit: SubmitState;
+  isPending: boolean;
+}) {
+  const buildingTypeLabel =
+    BUILDING_TYPES.find((t) => t.value === form.buildingType)?.label ??
+    form.buildingType;
+  const heatingLabel =
+    HEATINGS.find((h) => h.value === form.heatingKind)?.label ??
+    form.heatingKind;
+  const dhwLabel =
+    DHWS.find((d) => d.value === form.dhwKind)?.label ?? form.dhwKind;
+  const ventLabel =
+    VENTILATIONS.find((v) => v.value === form.ventilationKind)?.label ??
+    form.ventilationKind;
+
+  const scenariosCount =
+    (form.scenariosEnabled.isolationOnly ? 1 : 0) +
+    (form.scenariosEnabled.heatingOnly ? 1 : 0) +
+    (form.scenariosEnabled.global ? 1 : 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Récapitulatif</CardTitle>
+        <CardDescription>
+          Vérifiez vos saisies puis lancez le calcul.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <dl className="grid gap-3 sm:grid-cols-2">
+          <ReviewItem label="Projet" value={form.projectName} />
+          <ReviewItem label="Type" value={buildingTypeLabel} />
+          <ReviewItem label="Surface" value={`${form.surfaceHabitableM2} m²`} />
+          <ReviewItem
+            label="Hauteur"
+            value={`${form.hauteurSousPlafondM} m`}
+          />
+          <ReviewItem
+            label="Murs / Toiture / Plancher"
+            value={`${form.wallSurfaceM2} / ${form.roofSurfaceM2} / ${form.floorSurfaceM2} m²`}
+          />
+          <ReviewItem
+            label="Vitres"
+            value={`${form.windowSurfaceM2} m²`}
+          />
+          <ReviewItem label="Chauffage" value={heatingLabel} />
+          <ReviewItem label="ECS" value={dhwLabel} />
+          <ReviewItem label="Ventilation" value={ventLabel} />
+          <ReviewItem
+            label="Occupants / Foyer fiscal"
+            value={`${form.occupants} / ${form.householdSize}`}
+          />
+          <ReviewItem
+            label="Scénarios"
+            value={`${scenariosCount} sélectionné${scenariosCount > 1 ? "s" : ""}`}
+          />
+        </dl>
+
+        {submit.status === "error" && (
+          <div
+            role="status"
+            className="mt-4 flex items-start gap-2 rounded-md border border-error-100 bg-error-50 p-3 text-sm text-error-700"
+          >
+            <AlertTriangle
+              className="mt-0.5 h-4 w-4 shrink-0"
+              strokeWidth={1.75}
+              aria-hidden
+            />
+            <div>
+              <p className="font-semibold">Calcul impossible</p>
+              <p className="mt-0.5">{submit.message}</p>
+              {submit.fieldErrors && submit.fieldErrors.length > 0 && (
+                <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
+                  {submit.fieldErrors.map((fe, i) => (
+                    <li key={i}>
+                      <span className="font-medium">{fe.field}</span> — {fe.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
+        {(isPending || submit.status === "submitting") && (
+          <div className="mt-4 flex items-center gap-2 rounded-md bg-cream-100 p-3 text-sm text-stone-700">
+            <Loader2
+              className="h-4 w-4 animate-spin text-forest-600"
+              strokeWidth={2}
+              aria-hidden
+            />
+            Calcul en cours, le moteur thermique analyse votre saisie…
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReviewItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-cream-200 bg-cream-50/50 p-3">
+      <dt className="text-2xs font-semibold uppercase tracking-wider text-stone-500">
+        {label}
+      </dt>
+      <dd className="mt-0.5 text-sm font-semibold text-night-800">{value}</dd>
+    </div>
+  );
+}
+
+// ─── Result view (rendu inline après submit success) ───────────────────────
+
+function ResultView({
+  locale,
+  form,
+  result,
+}: {
+  locale: string;
+  form: BuildingFormData;
+  result: ProjectResult;
+}) {
+  const fmt = (n: number) =>
+    n.toLocaleString("fr-FR", { maximumFractionDigits: 0 });
+
+  return (
+    <div className="relative min-h-screen bg-cream-50 pb-16 pt-6 sm:pt-10">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[400px] overflow-hidden"
+      >
+        <div className="absolute -top-32 left-1/2 h-72 w-[600px] -translate-x-1/2 rounded-full bg-forest-100/40 blur-3xl sm:h-96 sm:w-[800px]" />
+      </div>
+
+      <div className="relative mx-auto max-w-3xl px-4 sm:px-6">
+        <header className="mb-6 text-center">
+          <p className="inline-flex items-center gap-2 rounded-full border border-forest-200 bg-forest-100/70 px-3 py-1.5 text-2xs font-semibold uppercase tracking-wider text-forest-700">
+            <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+            Diagnostic calculé
+          </p>
+          <h1
+            className="mt-3 font-serif text-2xl font-bold tracking-tight text-night-800 sm:text-3xl md:text-4xl"
+            style={{ fontFamily: "Source Serif 4, Georgia, serif" }}
+          >
+            {form.projectName}
+          </h1>
+          <p className="mt-2 text-sm text-stone-600">
+            Engine v{result.engine_version} · Paramètres v
+            {result.parameters_version} ·{" "}
+            {new Date(result.computed_at).toLocaleString("fr-FR")}
+          </p>
+        </header>
+
+        {/* DPE + GES */}
+        <Card>
+          <CardHeader>
+            <CardTitle>État initial estimé</CardTitle>
+            <CardDescription>
+              Calcul moteur réel sur la base de vos saisies.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-lg border border-cream-300 bg-white p-4 text-center">
+                <p className="text-2xs font-semibold uppercase tracking-wider text-stone-500">
+                  Étiquette DPE
+                </p>
+                <div className="mt-2 flex justify-center">
+                  <DPELabel
+                    classification={result.baseline.dpe_label}
+                    size="lg"
+                  />
+                </div>
+              </div>
+              <div className="rounded-lg border border-cream-300 bg-white p-4 text-center">
+                <p className="text-2xs font-semibold uppercase tracking-wider text-stone-500">
+                  Étiquette GES
+                </p>
+                <div className="mt-2 flex justify-center">
+                  <DPELabel
+                    classification={result.baseline.ges_label}
+                    size="lg"
+                  />
+                </div>
+              </div>
+              <KpiBlock
+                label="Besoin chauffage / an"
+                value={`${fmt(result.baseline.heating_needs_kWh_year)} kWh`}
+              />
+              <KpiBlock
+                label="Besoin ECS / an"
+                value={`${fmt(result.baseline.dhw_needs_kWh_year)} kWh`}
+              />
+              <KpiBlock
+                label="UA"
+                value={`${fmt(result.baseline.UA_W_K)} W/K`}
+              />
+              <KpiBlock
+                label="Cep"
+                value={`${fmt(result.baseline.cep_kWh_m2_year)} kWh EP/m²/an`}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Scénarios */}
+        {result.scenarios.length > 0 && (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>Scénarios travaux</CardTitle>
+              <CardDescription>
+                {result.scenarios.length} scénario
+                {result.scenarios.length > 1 ? "s" : ""} chiffré
+                {result.scenarios.length > 1 ? "s" : ""} par le moteur.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {result.scenarios.map((s) => (
+                  <div
+                    key={s.scenario_id}
+                    className={[
+                      "rounded-lg border p-4",
+                      s.scenario_id === result.recommended_scenario_id
+                        ? "border-forest-300 bg-forest-50/50"
+                        : "border-cream-300 bg-white",
+                    ].join(" ")}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold text-night-800">
+                        {s.scenario_name}
+                      </p>
+                      {s.scenario_id === result.recommended_scenario_id && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-forest-100 px-2 py-0.5 text-2xs font-semibold text-forest-800">
+                          <Sparkles
+                            className="h-3 w-3"
+                            strokeWidth={2}
+                            aria-hidden
+                          />
+                          Recommandé
+                        </span>
+                      )}
+                    </div>
+                    <dl className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                      <ScenarioStat
+                        label="DPE après"
+                        value={s.after.dpe_label}
+                      />
+                      <ScenarioStat
+                        label="Économies"
+                        value={`${fmt(s.savings.energy_eur_year)} €/an`}
+                      />
+                      <ScenarioStat
+                        label="Coût"
+                        value={`${fmt(s.works_cost_eur)} €`}
+                      />
+                      <ScenarioStat
+                        label="Aides"
+                        value={`${fmt(s.aids.total_subsidy_eur)} €`}
+                      />
+                    </dl>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Warnings */}
+        {result.warnings.length > 0 && (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>Points de vigilance</CardTitle>
+              <CardDescription>
+                Hypothèses ou cas particuliers détectés par le moteur.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-sm">
+                {result.warnings.map((w) => (
+                  <li
+                    key={w.code}
+                    className="flex items-start gap-2 rounded-md border-l-4 border-amber-400 bg-amber-50/60 px-3 py-2 text-amber-900"
+                  >
+                    <AlertTriangle
+                      className="mt-0.5 h-4 w-4 shrink-0 text-amber-600"
+                      strokeWidth={1.75}
+                      aria-hidden
+                    />
+                    <span>
+                      <span className="font-semibold">[{w.severity}]</span>{" "}
+                      {w.message}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* CTA — voir détail + créer un nouveau */}
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <Link
+            href={`/${locale}/p/dashboard`}
+            className="inline-flex h-11 items-center justify-center rounded-lg border border-cream-300 bg-white px-4 text-sm font-semibold text-stone-700 transition-colors hover:bg-cream-50"
+          >
+            Retour au tableau de bord
+          </Link>
+          <Link
+            href={`/${locale}/p/projects/${encodeURIComponent(form.projectName)}/synthese`}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-forest-600 px-5 text-sm font-semibold text-white shadow-soft transition-colors hover:bg-forest-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-400 focus-visible:ring-offset-2"
+          >
+            Voir la synthèse complète
+            <ArrowRight className="h-4 w-4" strokeWidth={2} aria-hidden />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KpiBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-cream-300 bg-white p-3">
+      <p className="text-2xs font-semibold uppercase tracking-wider text-stone-500">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-night-800 tabular-nums">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function ScenarioStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-2xs font-semibold uppercase tracking-wider text-stone-500">
+        {label}
+      </p>
+      <p className="mt-0.5 font-semibold text-night-800">{value}</p>
+    </div>
+  );
+}

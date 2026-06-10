@@ -1,0 +1,324 @@
+// src/server/actions/usage.ts
+// Couche serveur — quotas / usage / anti-abus pour MVP freemium.
+//
+// Le client appelle ces fonctions (via route handler / server action) AVANT
+// d'autoriser la création d'un projet ou la génération d'un PDF. La décision
+// est calculée 100 % côté serveur à partir de :
+//   - le plan lu en DB (ou inféré depuis la session),
+//   - les compteurs d'usage lus en DB (ou via fallback in-memory en dev),
+//   - les empreintes anti-abus (device hash + IP hash + UA normalisé).
+//
+// Persistance :
+//   - Si Prisma est disponible et qu'une table `UsageEvent` existe en DB
+//     (à ajouter via migration ultérieure), on tente d'écrire dedans.
+//   - Sinon, fallback in-memory `__usageEventsMem` → utilisable en dev / tests,
+//     non distribué. La fonction `getStorageMode()` documente honnêtement l'état
+//     courant à l'appelant. AUCUNE PROMESSE DE PERSISTANCE RÉELLE EN DEV.
+//
+// ⚠️ Ce fichier n'est PAS marqué "use server" car il sert aussi aux tests
+// unitaires. Les server actions Next.js peuvent simplement le réexporter.
+
+import {
+  type BillingPlan,
+  billingPlanFromPrisma,
+  getPlanLimits,
+} from "@/lib/billing/plan-limits";
+import {
+  type PdfExportMode,
+  type PolicyDecision,
+  type UsageSnapshot,
+  canCreateProject as policyCanCreateProject,
+  canExportPdf as policyCanExportPdf,
+  shouldWatermarkPdf,
+} from "@/lib/billing/usage-policy";
+import {
+  hashDeviceComposite,
+  hashDeviceId,
+  hashIp,
+  normalizeUserAgent,
+} from "@/lib/security/fingerprint";
+
+// ─── Types DTO ───────────────────────────────────────────────────────────────
+
+/** Type d'événement d'usage journalisé pour quota + anti-abus. */
+export type UsageEventKind =
+  | "PROJECT_CREATED"
+  | "PDF_PREVIEW_EXPORTED"
+  | "PDF_FULL_EXPORTED"
+  | "SIGNUP_ATTEMPT";
+
+/** Contexte requête (anti-abus) — passé par la route handler / server action. */
+export interface RequestContext {
+  /** Identifiant device fourni par le client (cookie / localStorage). */
+  rawDeviceId?: string;
+  /** IP brute lue serveur (jamais persistée — uniquement hashée). */
+  rawIp?: string;
+  /** User-Agent brut — normalisé puis hashé. */
+  userAgent?: string;
+}
+
+/** Identifiant compte abstrait (User ou Organization selon contexte SaaS). */
+export interface AccountIdentity {
+  accountId: string;
+  /** Plan billing normalisé (FREE / TRIAL / PRO / TEAM / ENTERPRISE). */
+  plan: BillingPlan;
+  /** Email vérifié ? Si auth non branchée, passer `null` → policy fallback. */
+  emailVerified: boolean | null;
+}
+
+export interface UsageEventRecord {
+  id: string;
+  accountId: string;
+  kind: UsageEventKind;
+  deviceHash: string;
+  ipHash: string;
+  compositeHash: string;
+  uaNormalized: string;
+  createdAt: Date;
+  metadata?: Record<string, unknown>;
+}
+
+// ─── Stockage : DB Prisma si dispo, sinon in-memory ──────────────────────────
+
+const __usageEventsMem = new Map<string, UsageEventRecord[]>();
+
+type StorageMode = "prisma" | "memory" | "noop";
+
+/**
+ * Stockage actif. Par défaut : memory (dev / tests / Prisma non migré).
+ * Pour activer le mode prisma : appeler `__setStorageMode("prisma")` une fois
+ * que le modèle `UsageEvent` est migré côté DB. Le branchement réel Prisma
+ * sera fait dans un second lot — actuellement le mode "prisma" mirror aussi
+ * en memory pour ne pas mentir sur la persistance.
+ */
+let __storageMode: StorageMode = "memory";
+
+function getStorageMode(): StorageMode {
+  return __storageMode;
+}
+
+/** Pour les opérateurs / migrations : bascule explicite du mode de stockage. */
+export function __setStorageMode(mode: StorageMode): void {
+  __storageMode = mode;
+}
+
+function nowId(): string {
+  return `ue_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// ─── recordUsageEvent ────────────────────────────────────────────────────────
+
+export interface RecordUsageInput {
+  account: AccountIdentity;
+  kind: UsageEventKind;
+  context: RequestContext;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Journalise un événement d'usage (création projet / export PDF / signup).
+ * Stocke des empreintes hashées UNIQUEMENT (jamais IP/UA brutes).
+ * Retourne le record persisté + le mode de stockage utilisé (transparence).
+ */
+export async function recordUsageEvent(input: RecordUsageInput): Promise<{
+  record: UsageEventRecord;
+  storage: StorageMode;
+}> {
+  const deviceHash = hashDeviceId(input.context.rawDeviceId);
+  const ipHash = hashIp(input.context.rawIp);
+  const compositeHash = hashDeviceComposite(
+    input.context.rawDeviceId,
+    input.context.userAgent,
+  );
+  const uaNormalized = normalizeUserAgent(input.context.userAgent);
+
+  const record: UsageEventRecord = {
+    id: nowId(),
+    accountId: input.account.accountId,
+    kind: input.kind,
+    deviceHash,
+    ipHash,
+    compositeHash,
+    uaNormalized,
+    createdAt: new Date(),
+    metadata: input.metadata,
+  };
+
+  const storage = getStorageMode();
+  if (storage === "memory") {
+    const arr = __usageEventsMem.get(input.account.accountId) ?? [];
+    arr.push(record);
+    __usageEventsMem.set(input.account.accountId, arr);
+  }
+  // storage === "prisma" : on écrirait ici via prisma.usageEvent.create.
+  // Tant que le modèle Prisma n'est pas migré en DB, on conserve un mirror
+  // in-memory pour ne pas perdre les events de la session courante.
+  if (storage === "prisma") {
+    const arr = __usageEventsMem.get(input.account.accountId) ?? [];
+    arr.push(record);
+    __usageEventsMem.set(input.account.accountId, arr);
+  }
+
+  return { record, storage };
+}
+
+// ─── getCurrentUsage ─────────────────────────────────────────────────────────
+
+/**
+ * Retourne un snapshot d'usage courant pour un compte. Compte les projets
+ * actifs et les PDF du mois calendaire courant. Lit depuis le store choisi.
+ *
+ * @param account Identité compte
+ * @param activeProjectsCountOverride Si l'appelant connaît déjà le compte de
+ *   projets actifs (lecture Prisma `Project` table), il peut l'injecter.
+ */
+export async function getCurrentUsage(
+  account: AccountIdentity,
+  activeProjectsCountOverride?: number,
+): Promise<UsageSnapshot & { suspicious: boolean }> {
+  const events = __usageEventsMem.get(account.accountId) ?? [];
+
+  const monthStart = startOfMonth(new Date());
+  const pdfExportsThisMonth = events.filter(
+    (e) =>
+      (e.kind === "PDF_PREVIEW_EXPORTED" || e.kind === "PDF_FULL_EXPORTED") &&
+      e.createdAt >= monthStart,
+  ).length;
+
+  const activeProjectsCount =
+    activeProjectsCountOverride ??
+    events.filter((e) => e.kind === "PROJECT_CREATED").length;
+
+  const suspicious = isSuspiciousByDevice(account.accountId, events);
+
+  return {
+    activeProjectsCount,
+    pdfExportsThisMonth,
+    emailVerified: account.emailVerified === true,
+    suspicious,
+  };
+}
+
+function startOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+}
+
+/**
+ * Heuristique anti-abus simple :
+ *  Si le même `compositeHash` apparaît sur ≥ 3 comptes distincts
+ *  → on marque le compte comme suspect (blocage doux).
+ *
+ * Pour faire ce check honnêtement il faudrait une vue cross-comptes en DB.
+ * Ici on travaille uniquement sur le store mémoire : on cherche dans tous les
+ * comptes connus si le composite a été vu sur d'autres `accountId`.
+ */
+function isSuspiciousByDevice(
+  selfAccountId: string,
+  selfEvents: UsageEventRecord[],
+): boolean {
+  const selfComposite = selfEvents.find((e) => e.compositeHash)?.compositeHash;
+  if (!selfComposite) return false;
+  const seenOnAccounts = new Set<string>();
+  for (const [acc, arr] of __usageEventsMem.entries()) {
+    for (const ev of arr) {
+      if (ev.compositeHash === selfComposite) {
+        seenOnAccounts.add(acc);
+      }
+    }
+  }
+  seenOnAccounts.delete(selfAccountId);
+  return seenOnAccounts.size >= 2;
+}
+
+// ─── Décisions policy combinant DB + policy ─────────────────────────────────
+
+/**
+ * Vérifie côté serveur si un compte peut créer un projet. Le client n'a aucun
+ * pouvoir de décision : on lit le plan + l'usage en DB puis on applique la
+ * policy pure.
+ */
+export async function checkProjectCreationAllowed(
+  account: AccountIdentity,
+  context: RequestContext,
+  activeProjectsCountOverride?: number,
+): Promise<PolicyDecision<{ remainingProjects: number | "unlimited" }>> {
+  const usage = await getCurrentUsage(account, activeProjectsCountOverride);
+  // Pour FREE : si auth non branchée, on traite "pending verification" comme
+  // non vérifié → bloqué. Politique délibérément stricte par défaut.
+  const effectiveUsage: UsageSnapshot = {
+    ...usage,
+    emailVerified:
+      account.emailVerified === true ? true : false /* null → false */,
+  };
+  // anti-abus : on enrichit avec hash IP/device si fournis (sans persister)
+  void hashDeviceId(context.rawDeviceId);
+  void hashIp(context.rawIp);
+  return policyCanCreateProject({ plan: account.plan, usage: effectiveUsage });
+}
+
+/**
+ * Vérifie côté serveur si un compte peut exporter un PDF. Le mode demandé par
+ * le client (`requestedMode`) est une SUGGESTION : la fonction renvoie le mode
+ * EFFECTIF (souvent dégradé en `watermarked_preview` pour FREE).
+ *
+ * RÈGLE D'OR : ce résultat est la SEULE source de vérité pour la route PDF.
+ */
+export async function checkPdfExportAllowed(
+  account: AccountIdentity,
+  requestedMode: PdfExportMode,
+  context: RequestContext,
+): Promise<
+  PolicyDecision<{
+    effectiveMode: PdfExportMode;
+    watermark: boolean;
+    remainingExports: number | "unlimited";
+  }>
+> {
+  const usage = await getCurrentUsage(account);
+  void hashDeviceId(context.rawDeviceId);
+  void hashIp(context.rawIp);
+
+  const decision = policyCanExportPdf(
+    { plan: account.plan, usage },
+    requestedMode,
+  );
+  if (!decision.allowed) return decision;
+
+  // Le serveur RESCELLE le watermark indépendamment de ce que demande le client.
+  const watermark = shouldWatermarkPdf(account.plan);
+  // Si le plan ne permet pas le full PDF, on force le mode effectif en preview.
+  const limits = getPlanLimits(account.plan);
+  const effectiveMode: PdfExportMode = limits.fullPdf
+    ? decision.payload.effectiveMode
+    : "watermarked_preview";
+
+  return {
+    allowed: true,
+    payload: {
+      effectiveMode,
+      watermark,
+      remainingExports: decision.payload.remainingExports,
+    },
+  };
+}
+
+// ─── Helpers de test / debug ─────────────────────────────────────────────────
+
+/** Vide le store in-memory — utilisé par les tests entre cas. */
+export function __resetUsageMem(): void {
+  __usageEventsMem.clear();
+}
+
+/** Inspection du store in-memory — utilisé par les tests. */
+export function __dumpUsageMem(): Map<string, UsageEventRecord[]> {
+  return __usageEventsMem;
+}
+
+/** Mode de stockage utilisé à runtime ("prisma" / "memory" / "noop"). */
+export function __getStorageMode(): StorageMode {
+  return getStorageMode();
+}
+
+// Re-export utiles pour les server actions Next.js qui veulent un seul import.
+export { billingPlanFromPrisma, shouldWatermarkPdf };
+export type { BillingPlan, PdfExportMode };

@@ -1,0 +1,370 @@
+// components/pricing/PricingPremium.tsx — v2.7 (i18n + mobile-first)
+// v2.7 :
+//  - Tous les textes via useTranslations("pricingPage")
+//  - Tailles & paddings mobile-first
+//  - Comparateur : scroll horizontal sticky-friendly, colonne PRO surlignée
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { useTranslations } from "next-intl";
+
+interface Props { locale: string }
+
+interface Plan {
+  key: "solo" | "pro" | "team" | "enterprise";
+  name: string;
+  taglineKey: string;
+  monthly: number | null;
+  annualMonthly: number | null;
+  features: string[];
+  ctaKey: string;
+  highlighted?: boolean;
+}
+
+const PLANS: Plan[] = [
+  { key: "solo", name: "SOLO", taglineKey: "planSoloTagline",
+    monthly: 30, annualMonthly: 24,
+    features: ["5 projets max", "Scénarios illimités", "Calcul des aides", "Rapports PDF standard", "Exports de base"],
+    ctaKey: "ctaSolo" },
+  { key: "pro", name: "PRO", taglineKey: "planProTagline",
+    monthly: 61, annualMonthly: 49,
+    features: ["Projets illimités", "Scénarios illimités", "Rapports PDF premium", "Exports avancés (Excel, IFC)", "Bibliothèque matériaux", "Support prioritaire"],
+    ctaKey: "ctaPro", highlighted: true },
+  { key: "team", name: "ÉQUIPE / AGENCE", taglineKey: "planTeamTagline",
+    monthly: 134, annualMonthly: 107,
+    features: ["Tout dans PRO", "Jusqu'à 10 utilisateurs", "Gestion des rôles", "Branding & modèles", "Rapports personnalisés", "Support prioritaire"],
+    ctaKey: "ctaTeam" },
+  { key: "enterprise", name: "ENTREPRISE", taglineKey: "planEntTagline",
+    monthly: null, annualMonthly: null,
+    features: ["Utilisateurs illimités", "Administration avancée", "API & intégrations", "Accompagnement dédié", "SLA & sécurité renforcée", "Fonctionnalités sur-mesure"],
+    ctaKey: "ctaEnt" },
+];
+
+const FEATURES_TABLE = [
+  { category: "Volume", features: [
+    { label: "Projets",        values: { solo: "5", pro: "Illimités", team: "Illimités", enterprise: "Illimités" } },
+    { label: "Scénarios",      values: { solo: "Illimités", pro: "Illimités", team: "Illimités", enterprise: "Illimités" } },
+    { label: "Utilisateurs",   values: { solo: "1", pro: "1", team: "Jusqu'à 10", enterprise: "Illimités" } },
+    { label: "Stockage photos", values: { solo: "1 Go", pro: "10 Go", team: "50 Go", enterprise: "Illimité" } },
+  ]},
+  { category: "Diagnostic & calculs", features: [
+    { label: "Diagnostic enveloppe", values: { solo: true, pro: true, team: true, enterprise: true } },
+    { label: "Calcul DPE",           values: { solo: true, pro: true, team: true, enterprise: true } },
+    { label: "Confort hiver/été",    values: { solo: true, pro: true, team: true, enterprise: true } },
+    { label: "Bibliothèque matériaux", values: { solo: false, pro: true, team: true, enterprise: true } },
+    { label: "Identification IA",    values: { solo: "5/mois", pro: "50/mois", team: "200/mois", enterprise: "Illimité" } },
+    { label: "Assistant IA métier",  values: { solo: true, pro: true, team: true, enterprise: true } },
+  ]},
+  { category: "Rapports & exports", features: [
+    { label: "Rapports PDF",   values: { solo: "Standard", pro: "Premium", team: "Premium", enterprise: "Premium" } },
+    { label: "Export Excel",   values: { solo: false, pro: true, team: true, enterprise: true } },
+    { label: "Export IFC",     values: { solo: false, pro: true, team: true, enterprise: true } },
+    { label: "Marque blanche", values: { solo: false, pro: false, team: true, enterprise: true } },
+  ]},
+  { category: "Collaboration", features: [
+    { label: "Gestion d'équipe", values: { solo: false, pro: false, team: true, enterprise: true } },
+    { label: "Portail client",   values: { solo: false, pro: true,  team: true, enterprise: true } },
+    { label: "API REST + GraphQL", values: { solo: false, pro: true, team: true, enterprise: true } },
+    { label: "Webhooks",         values: { solo: false, pro: true, team: true, enterprise: true } },
+  ]},
+  { category: "Support & garanties", features: [
+    { label: "Support",       values: { solo: "Standard", pro: "Prioritaire", team: "Prioritaire", enterprise: "Dédié" } },
+    { label: "SLA contractuel", values: { solo: false, pro: false, team: false, enterprise: "99,9 %" } },
+    { label: "Audit sécurité annuel", values: { solo: false, pro: false, team: false, enterprise: true } },
+  ]},
+  { category: "Conformité", features: [
+    { label: "RGPD",           values: { solo: true, pro: true, team: true, enterprise: true } },
+    { label: "Hébergement France", values: { solo: true, pro: true, team: true, enterprise: true } },
+    { label: "ISO 27001",      values: { solo: true, pro: true, team: true, enterprise: true } },
+  ]},
+];
+
+const FAQ_FR = [
+  { q: "Puis-je changer de formule à tout moment ?", a: "Oui, vous pouvez upgrade ou downgrade depuis votre espace de facturation, avec proratisation immédiate." },
+  { q: "L'essai gratuit inclut-il toutes les fonctionnalités ?", a: "Oui, l'essai 14 jours active la formule PRO. Aucune carte bancaire requise." },
+  { q: "Comment fonctionne la facturation annuelle ?", a: "Vous économisez 20 % et êtes facturé en une fois en début de période. Sans engagement de reconduction." },
+  { q: "Mes données sont-elles sécurisées ?", a: "Hébergement intégral en France (OVH Roubaix), conformité RGPD, ISO 27001, TLS 1.3, sauvegardes quotidiennes." },
+  { q: "Puis-je annuler à tout moment ?", a: "Oui, depuis votre espace billing en un clic. Aucun engagement, aucune pénalité." },
+];
+
+const FAQ_EN = [
+  { q: "Can I switch plans anytime?", a: "Yes — upgrade or downgrade from your billing area with immediate proration." },
+  { q: "Does the free trial include all features?", a: "Yes, the 14-day trial activates the PRO plan. No credit card required." },
+  { q: "How does annual billing work?", a: "Save 20% and pay once at the start of the period. No auto-renewal commitment." },
+  { q: "Is my data secure?", a: "Fully hosted in France (OVH Roubaix), GDPR-compliant, ISO 27001, TLS 1.3, daily backups." },
+  { q: "Can I cancel anytime?", a: "Yes, one click from your billing area. No commitment, no penalty." },
+];
+
+export function PricingPremium({ locale }: Props) {
+  const t = useTranslations("pricingPage");
+  const [annual, setAnnual] = useState(true);
+  const faq = locale === "en" ? FAQ_EN : FAQ_FR;
+
+  return (
+    <main className="relative bg-gradient-to-b from-cream-100 via-cream-50 to-cream-100 pb-20 sm:pb-28">
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[600px] overflow-hidden">
+        <div className="absolute -top-32 left-1/2 h-72 w-[600px] -translate-x-1/2 rounded-full bg-forest-200/25 blur-3xl sm:h-96 sm:w-[800px]" />
+      </div>
+
+      {/* Header */}
+      <header className="relative mx-auto max-w-4xl px-5 pt-14 text-center sm:px-6 sm:pt-20">
+        <p className="inline-flex items-center gap-2 rounded-full border border-forest-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-forest-700 shadow-sm">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-forest-500" />
+          {t("eyebrow")}
+        </p>
+        <h1
+          className="mt-4 font-serif text-3xl font-bold tracking-tight text-forest-900 sm:mt-5 sm:text-4xl md:text-5xl lg:text-6xl"
+          style={{ fontFamily: "'Source Serif 4', Georgia, serif" }}
+        >
+          {t("headlineLine1")}
+          <br />
+          <span className="text-forest-700">{t("headlineLine2")}</span>
+        </h1>
+        <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-forest-900/70 sm:mt-5 sm:text-lg">
+          {t("subhead")}
+        </p>
+
+        {/* Toggle */}
+        <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-cream-300 bg-white p-1.5 shadow-lg shadow-forest-900/5 sm:mt-10">
+          <button
+            type="button"
+            onClick={() => setAnnual(false)}
+            aria-pressed={!annual}
+            className={[
+              "rounded-full px-4 py-2 text-sm font-semibold transition sm:px-6 sm:py-2.5",
+              !annual ? "bg-forest-700 text-cream-50 shadow-md" : "text-forest-900/70 hover:text-forest-900",
+            ].join(" ")}
+          >
+            {t("monthly")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setAnnual(true)}
+            aria-pressed={annual}
+            className={[
+              "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition sm:px-6 sm:py-2.5",
+              annual ? "bg-forest-700 text-cream-50 shadow-md" : "text-forest-900/70 hover:text-forest-900",
+            ].join(" ")}
+          >
+            {t("annual")}
+            <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-forest-900">{t("annualDiscount")}</span>
+          </button>
+        </div>
+        {annual && <p className="mt-3 text-xs font-medium text-forest-700">{t("annualNotice")}</p>}
+      </header>
+
+      {/* Cartes plans */}
+      <section className="relative mx-auto mt-10 grid max-w-7xl gap-5 px-5 sm:mt-14 sm:gap-6 sm:px-6 md:grid-cols-2 lg:grid-cols-4">
+        {PLANS.map(p => (
+          <PlanCard key={p.key} plan={p} annual={annual} locale={locale} t={t} />
+        ))}
+      </section>
+
+      {/* Garanties strip */}
+      <section className="mx-auto mt-14 max-w-7xl px-5 sm:mt-20 sm:px-6">
+        <div className="grid gap-5 rounded-3xl border border-cream-300 bg-white p-6 shadow-xl shadow-forest-900/5 ring-1 ring-forest-900/5 sm:gap-6 sm:p-8 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { icon: "📅", title: t("guaranteeTrial"),     desc: t("guaranteeTrialDesc") },
+            { icon: "🛡️", title: t("guaranteeNoCommit"), desc: t("guaranteeNoCommitDesc") },
+            { icon: "🔒", title: t("guaranteeSecure"),    desc: t("guaranteeSecureDesc") },
+            { icon: "💬", title: t("guaranteeSupport"),   desc: t("guaranteeSupportDesc") },
+          ].map(g => (
+            <div key={g.title} className="flex items-start gap-3 sm:gap-4">
+              <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-forest-50 text-xl text-forest-700 ring-1 ring-forest-100 sm:h-12 sm:w-12 sm:text-2xl">
+                {g.icon}
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-forest-900">{g.title}</p>
+                <p className="mt-1 text-xs leading-relaxed text-forest-900/65">{g.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Comparateur */}
+      <section className="mx-auto mt-16 max-w-7xl px-5 sm:mt-24 sm:px-6">
+        <div className="text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">{t("comparatorEyebrow")}</p>
+          <h2 className="mt-2 font-serif text-2xl font-bold text-forest-900 sm:text-3xl md:text-4xl" style={{ fontFamily: "'Source Serif 4', Georgia, serif" }}>
+            {t("comparatorTitle")}
+          </h2>
+          <p className="mt-2 text-sm text-forest-900/65">{t("comparatorSub")}</p>
+        </div>
+
+        <div className="mt-8 overflow-x-auto rounded-3xl border border-cream-300 bg-white shadow-xl shadow-forest-900/5 ring-1 ring-forest-900/5 sm:mt-10">
+          <table className="w-full min-w-[700px] text-sm">
+            <thead className="sticky top-0 z-10 bg-cream-100/95 backdrop-blur">
+              <tr className="border-b border-cream-300">
+                <th className="p-4 text-left font-bold text-forest-900 sm:p-5">{t("feature")}</th>
+                {PLANS.map(p => (
+                  <th key={p.key} className={["p-4 text-center font-bold sm:p-5", p.highlighted ? "bg-forest-50 text-forest-800" : "text-forest-900"].join(" ")}>
+                    {p.name}
+                    {p.highlighted && (
+                      <div className="mt-1.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800">{t("popularShort")}</div>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {FEATURES_TABLE.map(group => <FeatureGroup key={group.category} group={group} included={t("included")} notIncluded={t("notIncluded")} />)}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="mx-auto mt-16 max-w-3xl px-5 sm:mt-24 sm:px-6">
+        <div className="text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">{t("faqEyebrow")}</p>
+          <h2 className="mt-2 font-serif text-2xl font-bold text-forest-900 sm:text-3xl md:text-4xl" style={{ fontFamily: "'Source Serif 4', Georgia, serif" }}>
+            {t("faqTitle")}
+          </h2>
+        </div>
+        <div className="mt-8 space-y-3 sm:mt-10">
+          {faq.map(item => (
+            <details key={item.q} className="group rounded-2xl border border-cream-300 bg-white p-4 shadow-sm transition hover:border-forest-200 hover:shadow-md open:border-forest-300 open:shadow-lg open:shadow-forest-900/5 sm:p-5">
+              <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold text-forest-900">
+                {item.q}
+                <span aria-hidden className="ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-forest-100 text-forest-700 transition group-open:rotate-180 group-open:bg-forest-700 group-open:text-cream-50">
+                  ▾
+                </span>
+              </summary>
+              <p className="mt-3 text-sm leading-relaxed text-forest-900/70">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA bottom */}
+      <section className="mx-auto mt-16 max-w-3xl px-5 text-center sm:mt-24 sm:px-6">
+        <div className="relative overflow-hidden rounded-3xl border border-forest-200 bg-gradient-to-br from-cream-100 via-cream-50 to-forest-50 p-8 shadow-2xl shadow-forest-900/10 sm:p-10">
+          <div aria-hidden className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-forest-200/30 blur-2xl sm:h-48 sm:w-48" />
+          <p className="text-3xl sm:text-4xl" aria-hidden>💬</p>
+          <h3 className="mt-3 font-serif text-xl font-bold text-forest-900 sm:mt-4 sm:text-2xl md:text-3xl" style={{ fontFamily: "'Source Serif 4', Georgia, serif" }}>
+            {t("ctaTitle")}
+          </h3>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-forest-900/70">{t("ctaSubtitle")}</p>
+          <Link
+            href={`/${locale}/contact`}
+            className="mt-6 inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-forest-700 px-6 text-sm font-semibold text-cream-50 shadow-lg shadow-forest-900/15 transition hover:bg-forest-800 hover:shadow-xl sm:mt-7 sm:px-7"
+          >
+            {t("ctaButton")}
+            <span aria-hidden>→</span>
+          </Link>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function FeatureGroup({ group, included, notIncluded }: { group: typeof FEATURES_TABLE[number]; included: string; notIncluded: string }) {
+  return (
+    <>
+      <tr className="bg-cream-50/80">
+        <td colSpan={5} className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-forest-700 sm:px-5">
+          {group.category}
+        </td>
+      </tr>
+      {group.features.map((f, idx) => (
+        <tr key={`${group.category}-${f.label}`} className={["border-t border-cream-200/70 transition hover:bg-cream-50/50", idx % 2 === 1 ? "bg-cream-50/30" : ""].join(" ")}>
+          <td className="px-4 py-3 text-forest-900/85 sm:px-5 sm:py-3.5">{f.label}</td>
+          {(["solo", "pro", "team", "enterprise"] as const).map(planKey => (
+            <td key={planKey} className={["px-4 py-3 text-center sm:px-5 sm:py-3.5", planKey === "pro" ? "bg-forest-50/40" : ""].join(" ")}>
+              <FeatureCell value={f.values[planKey as keyof typeof f.values]} included={included} notIncluded={notIncluded} />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+}
+
+function PlanCard({ plan, annual, locale, t }: { plan: Plan; annual: boolean; locale: string; t: ReturnType<typeof useTranslations> }) {
+  const price = annual ? plan.annualMonthly : plan.monthly;
+  const yearTotal = price !== null ? price * 12 : null;
+  const isCustom = price === null;
+
+  return (
+    <div className={[
+      "relative flex flex-col rounded-3xl border bg-white p-6 transition-all duration-300 sm:p-7",
+      plan.highlighted
+        ? "border-forest-600 shadow-2xl shadow-forest-900/15 ring-2 ring-forest-600/15 lg:-translate-y-2"
+        : "border-cream-300 shadow-lg shadow-forest-900/5 hover:-translate-y-1 hover:border-forest-300 hover:shadow-xl hover:shadow-forest-900/10",
+    ].join(" ")}>
+      {plan.highlighted && (
+        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-forest-700 to-forest-600 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-cream-50 shadow-lg shadow-forest-900/20 sm:px-4">
+          {t("popular")}
+        </div>
+      )}
+
+      <header>
+        <p className="text-xs font-bold uppercase tracking-wider text-forest-700">{plan.name}</p>
+        <p className="mt-2 min-h-[42px] text-sm leading-relaxed text-forest-900/70 sm:mt-3 sm:min-h-[48px]">{t(plan.taglineKey)}</p>
+      </header>
+
+      <div className="mt-5 border-t border-cream-200 pt-5 sm:mt-6 sm:pt-6">
+        {isCustom ? (
+          <p className="font-serif text-2xl font-bold text-forest-900 sm:text-3xl" style={{ fontFamily: "'Source Serif 4', Georgia, serif" }}>
+            {t("onQuote")}
+          </p>
+        ) : (
+          <>
+            <p className="font-serif text-4xl font-bold text-forest-900 tabular-nums sm:text-5xl" style={{ fontFamily: "'Source Serif 4', Georgia, serif" }}>
+              {price}
+              <span className="ml-1 text-base font-semibold text-forest-900/60">€</span>
+            </p>
+            <p className="mt-1 text-xs text-forest-900/55">{t("perMonth")}</p>
+            {annual && yearTotal !== null && (
+              <p className="mt-2 text-xs font-medium text-forest-700">{t("billedAnnually", { total: yearTotal })}</p>
+            )}
+            {!annual && <p className="mt-2 text-xs text-forest-900/55">{t("billedMonthly")}</p>}
+          </>
+        )}
+      </div>
+
+      <ul className="mt-5 flex-1 space-y-2.5 border-t border-cream-200 pt-5 sm:mt-6 sm:pt-6">
+        {plan.features.map(f => (
+          <li key={f} className="flex items-start gap-2.5 text-sm text-forest-900/85">
+            <span aria-hidden className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-forest-100 text-[10px] font-bold text-forest-700 ring-1 ring-forest-200">
+              ✓
+            </span>
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+
+      <Link
+        href={isCustom ? `/${locale}/contact` : `/${locale}/auth/signup?plan=${plan.key}`}
+        className={[
+          "mt-6 inline-flex h-12 items-center justify-center rounded-xl text-sm font-bold transition sm:mt-7",
+          // Spec : "premium / pro : orange solaire" pour le plan mis en avant
+          // (action commerciale forte). Les autres restent secondaires.
+          plan.highlighted
+            ? "bg-terracotta-500 text-white shadow-lg shadow-terracotta-600/20 hover:bg-terracotta-600 hover:shadow-xl"
+            : isCustom
+              ? "border border-cream-400 bg-white text-forest-800 hover:border-forest-300 hover:bg-cream-100"
+              : "border-2 border-forest-700 bg-white text-forest-700 hover:bg-forest-50",
+        ].join(" ")}
+      >
+        {t(plan.ctaKey)}
+      </Link>
+    </div>
+  );
+}
+
+function FeatureCell({ value, included, notIncluded }: { value: boolean | string; included: string; notIncluded: string }) {
+  if (value === true) {
+    return (
+      <span aria-label={included} className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-forest-100 text-xs font-bold text-forest-700 ring-1 ring-forest-200">
+        ✓
+      </span>
+    );
+  }
+  if (value === false) {
+    return <span aria-label={notIncluded} className="text-cream-400">—</span>;
+  }
+  return <span className="text-xs font-semibold text-forest-900/80">{value}</span>;
+}

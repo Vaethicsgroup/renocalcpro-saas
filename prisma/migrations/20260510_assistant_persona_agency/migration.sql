@@ -1,0 +1,2 @@
+-- Sprint 28 — Persona PRO_AGENCY
+ALTER TYPE "AssistantPersona" ADD VALUE IF NOT EXISTS 'PRO_AGENCY';

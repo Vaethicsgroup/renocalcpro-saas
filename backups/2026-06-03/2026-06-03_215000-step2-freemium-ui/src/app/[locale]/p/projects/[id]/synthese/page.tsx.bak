@@ -1,0 +1,267 @@
+// app/[locale]/p/projects/[id]/synthese/page.tsx — v3.0 (BRANCHÉ MOTEUR + PDF RÉEL)
+// Server Component : exécute le moteur Rich en SSR sur le projet courant,
+// rend les KPIs réellement calculés, embed le bouton de téléchargement PDF.
+//
+// ⚠️ Source de données : SAMPLE_BUILDING (jeu de démo statique) tant que les
+// formulaires Enveloppe/Systèmes ne sont pas branchés à la persistance Prisma.
+// Banner explicite affichée pour ne pas tromper le testeur.
+
+import Link from "next/link";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
+import { DPELabel } from "@/components/results/DPELabel";
+import { DownloadReportButton } from "@/components/calc/DownloadReportButton";
+import { consolidateProjectResultRich } from "@/lib/calc/result/consolidate-rich";
+import { SAMPLE_BUILDING, SAMPLE_HOUSEHOLD, SAMPLE_SCENARIOS } from "@/lib/calc/samples/maison-1975";
+
+export const dynamic = "force-dynamic";
+
+interface Props {
+  params: Promise<{ locale: string; id: string }>;
+}
+
+export default async function SynthesePage({ params }: Props) {
+  const { locale, id } = await params;
+
+  // Exécution moteur réelle en SSR
+  const result = consolidateProjectResultRich({
+    project_id: id,
+    building: SAMPLE_BUILDING,
+    household: SAMPLE_HOUSEHOLD,
+    scenarios: SAMPLE_SCENARIOS,
+  });
+
+  const fmt = (n: number) => n.toLocaleString("fr-FR", { maximumFractionDigits: 0 });
+  const eur = (n: number) => `${fmt(n)} €`;
+  const baseline = result.baseline;
+  const reco = result.scenarios.find(s => s.scenario_id === result.recommended_scenario_id);
+
+  return (
+    <div className="space-y-6">
+      {/* Banner sources de données — HONNÊTE */}
+      <div className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-3 text-sm text-amber-900">
+        <p className="font-semibold">Mode démo · données SAMPLE_BUILDING (maison 1975, 110 m², zone H1a)</p>
+        <p className="mt-1 text-xs">
+          Les chiffres ci-dessous proviennent d&apos;un calcul moteur RÉEL (engine v{result.engine_version}, paramètres v{result.parameters_version})
+          mais sur un jeu de données statique. Le branchement aux formulaires Enveloppe/Systèmes
+          de ce projet est prévu au lot suivant.
+        </p>
+      </div>
+
+      {/* Hero synthèse — RÉEL calculé */}
+      <Card variant="featured">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+          <div className="flex-1">
+            <p className="text-2xs font-semibold uppercase tracking-wider text-forest-700">Étiquette énergétique calculée</p>
+            <h2
+              className="mt-1 font-serif text-2xl font-bold text-forest-900 sm:text-3xl"
+              style={{ fontFamily: "Source Serif 4, Georgia, serif" }}
+            >
+              Avant et après le scénario recommandé
+            </h2>
+            <p className="mt-1.5 max-w-md text-sm text-forest-900/65">
+              {reco ? (
+                <>
+                  Gain estimé : <strong>{reco.savings.dpe_steps_gained} classes DPE</strong>{" "}
+                  en passant de <strong>{baseline.dpe_label}</strong> à <strong>{reco.after.dpe_label}</strong>{" "}
+                  via le scénario « {reco.scenario_name} ».
+                </>
+              ) : "Aucun scénario calculé."}
+            </p>
+
+            <div className="mt-4">
+              <DownloadReportButton result={result} label="Télécharger le rapport PDF complet" size="md" />
+            </div>
+          </div>
+          <div className="shrink-0">
+            <DPELabel variant="beforeAfter" before={baseline.dpe_label} after={reco?.after.dpe_label ?? baseline.dpe_label} />
+          </div>
+        </div>
+      </Card>
+
+      {/* Aperçu enveloppe + systèmes — RÉEL */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Composition de l&apos;enveloppe</CardTitle>
+            <CardDescription>{result.building.walls.length} paroi(s) déclarée(s), {result.building.openings.length} ouvrant(s)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y divide-stone-100 text-sm">
+              {result.heat_loss_breakdown.items.slice(0, 4).map(item => (
+                <li key={item.code} className="flex items-start gap-3 py-3">
+                  <span aria-hidden className="text-xl">
+                    {item.code === "WALLS" ? "🧱" : item.code === "ROOFS" ? "🏠" : item.code === "FLOORS" ? "⬇️" : item.code === "OPENINGS" ? "🪟" : "🌬️"}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-stone-900">{item.label}</p>
+                    <p className="text-xs text-stone-500">
+                      UA : {fmt(item.ua_W_K)} W/K · {Math.round(item.share * 100)}% des pertes ·{" "}
+                      <span className={
+                        item.priority === "HAUTE" ? "font-semibold text-rose-700" :
+                        item.priority === "MOYENNE" ? "font-semibold text-amber-700" :
+                        "text-stone-500"
+                      }>
+                        priorité {item.priority.toLowerCase()}
+                      </span>
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Systèmes existants</CardTitle>
+            <CardDescription>Chauffage, ECS, ventilation</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y divide-stone-100 text-sm">
+              {result.building.heating.map(h => (
+                <li key={h.id} className="flex items-start gap-3 py-3">
+                  <span aria-hidden className="text-xl">🔥</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-stone-900">Chauffage : {h.kind.replace(/_/g, " ")}</p>
+                    <p className="text-xs text-stone-500">
+                      Énergie {h.carrier} · {h.install_year ? `installé ${h.install_year}` : "année non saisie"}
+                    </p>
+                  </div>
+                </li>
+              ))}
+              {result.building.dhw.map(d => (
+                <li key={d.id} className="flex items-start gap-3 py-3">
+                  <span aria-hidden className="text-xl">🚿</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-stone-900">ECS : {d.kind.replace(/_/g, " ")}</p>
+                    <p className="text-xs text-stone-500">Énergie {d.carrier}</p>
+                  </div>
+                </li>
+              ))}
+              <li className="flex items-start gap-3 py-3">
+                <span aria-hidden className="text-xl">🌬️</span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-stone-900">Ventilation : {result.building.ventilation.kind.replace(/_/g, " ")}</p>
+                </div>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Analyse globale — RÉEL */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Analyse globale</CardTitle>
+          <CardDescription>Calculs moteur — engine v{result.engine_version}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid gap-6 sm:grid-cols-3">
+            <div>
+              <dt className="text-2xs font-semibold uppercase tracking-wider text-stone-500">Besoins de chauffage</dt>
+              <dd className="mt-1 font-serif text-2xl font-bold text-stone-900 tabular-nums">
+                {fmt(baseline.heating_needs_kWh_year / result.building.surface_habitable_m2)}
+                <span className="text-sm font-normal text-stone-500"> kWh/m²/an</span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-2xs font-semibold uppercase tracking-wider text-stone-500">Consommation énergie primaire</dt>
+              <dd className="mt-1 font-serif text-2xl font-bold text-stone-900 tabular-nums">
+                {fmt(baseline.cep_kWh_m2_year)}
+                <span className="text-sm font-normal text-stone-500"> kWh/m²/an</span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-2xs font-semibold uppercase tracking-wider text-stone-500">Émissions CO₂</dt>
+              <dd className="mt-1 font-serif text-2xl font-bold text-stone-900 tabular-nums">
+                {fmt(baseline.ges_kgCO2_m2_year)}
+                <span className="text-sm font-normal text-stone-500"> kgCO₂/m²/an</span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-2xs font-semibold uppercase tracking-wider text-stone-500">Facture annuelle estimée</dt>
+              <dd className="mt-1 font-serif text-2xl font-bold text-stone-900 tabular-nums">{eur(baseline.annual_cost_eur)}</dd>
+            </div>
+            <div>
+              <dt className="text-2xs font-semibold uppercase tracking-wider text-stone-500">Confort été (Tic estimé)</dt>
+              <dd className="mt-1 font-serif text-2xl font-bold text-stone-900 tabular-nums">
+                {result.summer_comfort.tic_estimated_C}<span className="text-sm font-normal text-stone-500">°C</span>
+              </dd>
+              <dd className="mt-0.5 text-xs text-stone-500">{result.summer_comfort.level}</dd>
+            </div>
+            <div>
+              <dt className="text-2xs font-semibold uppercase tracking-wider text-stone-500">Niveau de fiabilité</dt>
+              <dd className="mt-1 font-serif text-2xl font-bold text-stone-900 tabular-nums">
+                {result.confidence.score}<span className="text-sm font-normal text-stone-500">/100</span>
+              </dd>
+              <dd className="mt-0.5 text-xs text-stone-500">{result.confidence.level}</dd>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
+
+      {/* Scénarios calculés — RÉEL */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{result.scenarios.length} scénarios calculés</CardTitle>
+          <CardDescription>Gains, coûts, aides et reste à charge</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-3">
+            {result.scenarios.map(s => {
+              const isReco = s.scenario_id === result.recommended_scenario_id;
+              return (
+                <li
+                  key={s.scenario_id}
+                  className={[
+                    "rounded-xl border p-4",
+                    isReco ? "border-forest-600 bg-forest-50/40 ring-1 ring-forest-600/20" : "border-stone-200 bg-white",
+                  ].join(" ")}
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="font-semibold text-stone-900">
+                      {isReco && <span className="mr-1">★</span>}{s.scenario_name}
+                    </p>
+                    <span className="text-xs text-stone-500">DPE après : <strong>{s.after.dpe_label}</strong> (+{s.savings.dpe_steps_gained})</span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-stone-700 sm:grid-cols-4">
+                    <span>Économie : <strong className="text-emerald-700">{eur(s.savings.energy_eur_year)}/an</strong></span>
+                    <span>Coût : <strong>{eur(s.works_cost_eur)}</strong></span>
+                    <span>Aides : <strong className="text-emerald-700">{eur(s.aids.total_subsidy_eur)}</strong></span>
+                    <span>RAC : <strong>{eur(s.out_of_pocket_eur)}</strong>{s.payback_years ? ` · retour ${s.payback_years} ans` : ""}</span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </CardContent>
+      </Card>
+
+      {/* Lien retour + warnings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Points de vigilance ({result.warnings.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {result.warnings.length === 0 ? (
+            <p className="text-sm text-stone-600">Aucun point de vigilance détecté.</p>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {result.warnings.map((w, i) => (
+                <li key={i} className="rounded-md border-l-4 border-amber-400 bg-amber-50 px-3 py-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-amber-900">[{w.severity}] {w.code}</p>
+                  <p className="mt-0.5 text-amber-900/85">{w.message}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-4 text-xs text-stone-500">
+            Statut conformité moteur : <strong>{result.compliance.global.globalStatus}</strong>.
+            Cette synthèse est indicative — ce n&apos;est pas un DPE 3CL réglementaire.{" "}
+            <Link href={`/${locale}/help/getting-started`} className="text-forest-700 hover:underline">En savoir plus</Link>
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

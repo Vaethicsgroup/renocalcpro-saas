@@ -1,0 +1,214 @@
+/* globals.css — RENOCALCPRO Design System v4.0 « Energy Trust »
+ * ─────────────────────────────────────────────────────────────────────────
+ * Tokens HSL alignés sur la palette Energy Trust :
+ *   - Fond chaud clair (cream très pâle)
+ *   - Texte bleu nuit (#102A43)
+ *   - Primaire vert énergie (#00A86B)
+ *   - Accent orange solaire (#FF8A00)
+ *   - Bordures douces (#E7DDCC)
+ *   - Premium info bleu (#2563EB)
+ * Importé une seule fois depuis app/[locale]/layout.tsx.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ════════════════════════════════════════════════════════════════════
+       LIGHT MODE — Energy Trust (DA validée)
+       ════════════════════════════════════════════════════════════════════ */
+
+    /* Fond principal : cream très pâle chaleureux #FFFDF7 */
+    --background: 45 100% 98%;
+    --foreground: 213 62% 17%;            /* #102A43 bleu nuit texte */
+
+    --card: 0 0% 100%;                    /* white pur — contraste cards */
+    --card-foreground: 213 62% 17%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 213 62% 17%;
+
+    /* PRIMARY = Vert énergie #00A86B — CTA primaire, succès, focus brand */
+    --primary: 158 100% 33%;
+    --primary-foreground: 0 0% 100%;
+
+    /* SECONDARY = cream-100 #F6F0E4 — blocs doux, hovers neutres */
+    --secondary: 38 50% 93%;
+    --secondary-foreground: 213 62% 17%;
+
+    --muted: 38 32% 92%;
+    --muted-foreground: 209 14% 37%;      /* #52616B texte secondaire */
+
+    /* ACCENT = Orange solaire #FF8A00 — CTA commerciaux forts (upgrade Pro) */
+    --accent: 32 100% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;             /* #EF4444 rouge corail */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 38 33% 86%;                 /* #E7DDCC bordure douce */
+    --input: 38 33% 80%;
+    --ring: 158 100% 33%;                 /* vert énergie focus */
+
+    --radius: 0.75rem;                    /* 12px (rounded-lg) par défaut */
+
+    /* ════════════════════════════════════════════════════════════════════
+       FONTS
+       ════════════════════════════════════════════════════════════════════ */
+    --font-serif: "Source Serif 4", Georgia, serif;
+    --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+  }
+
+  .dark {
+    /* ════════════════════════════════════════════════════════════════════
+       DARK MODE — préparé, pas activé en MVP. Surfaces bleu nuit.
+       ════════════════════════════════════════════════════════════════════ */
+    --background: 213 82% 8%;             /* night profond */
+    --foreground: 45 100% 96%;
+
+    --card: 213 70% 12%;
+    --card-foreground: 45 100% 96%;
+
+    --popover: 213 70% 12%;
+    --popover-foreground: 45 100% 96%;
+
+    --primary: 158 100% 45%;              /* vert énergie plus clair en dark */
+    --primary-foreground: 213 82% 8%;
+
+    --secondary: 213 50% 18%;
+    --secondary-foreground: 45 100% 92%;
+
+    --muted: 213 30% 16%;
+    --muted-foreground: 209 14% 70%;
+
+    --accent: 32 100% 56%;                /* orange un peu plus clair en dark */
+    --accent-foreground: 213 82% 8%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 213 25% 22%;
+    --input: 213 25% 25%;
+    --ring: 158 100% 45%;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  /* Titres : serif éditorial premium, ton bleu nuit unifié — spec
+     "titres bleu nuit" sur cards et sections. */
+  h1, h2, h3, .font-serif-headline {
+    font-family: var(--font-serif);
+    letter-spacing: -0.015em;
+    color: hsl(213 62% 17%);              /* #102A43 bleu nuit */
+  }
+
+  /* Focus visible cohérent : ring vert énergie */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.18);
+    color: hsl(var(--primary));
+  }
+}
+
+@layer components {
+  /* Container marketing */
+  .container-marketing {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    max-width: 80rem; /* 1280px */
+  }
+
+  /* Hover lift subtil pour cards */
+  .card-hover-lift {
+    transition: transform 200ms ease-out, box-shadow 200ms ease-out;
+  }
+  .card-hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 4px 14px rgba(16, 42, 67, 0.08),
+      0 2px 4px rgba(16, 42, 67, 0.04);
+  }
+
+  /* Sidebar item base — utilisé par sidebars night (Pro/Admin) et light
+     (Particulier). */
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 150ms ease-out, color 150ms ease-out;
+  }
+
+  /* Section cream alternée */
+  .section-cream {
+    background-color: hsl(38 50% 95%);
+  }
+
+  /* Bouton CTA primaire — vert énergie arrondi */
+  .btn-primary {
+    background-color: hsl(158 100% 33%);
+    color: hsl(0 0% 100%);
+    padding: 0.625rem 1.25rem;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: background-color 150ms ease-out;
+  }
+  .btn-primary:hover {
+    background-color: hsl(163 100% 21%);
+  }
+
+  /* Bouton CTA commercial fort (upgrade, Pro) — orange solaire */
+  .btn-accent {
+    background-color: hsl(32 100% 50%);
+    color: hsl(0 0% 100%);
+    padding: 0.625rem 1.25rem;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: background-color 150ms ease-out;
+  }
+  .btn-accent:hover {
+    background-color: hsl(28 100% 45%);
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

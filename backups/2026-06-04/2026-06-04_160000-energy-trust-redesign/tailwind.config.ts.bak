@@ -1,0 +1,277 @@
+// tailwind.config.ts — Réno·Calc Pro Premium Design System v3.0 (Sprint v2.4)
+// Tokens dérivés de la DA validée : Forest Green (#1F4D2E / #2D5A3E) + Cream warm + Naturals.
+// Compat : les classes legacy (teal-*, sage-*, copper-*) sont REMAPPÉES vers les nouvelles teintes
+// pour propagation automatique sans toucher au code existant.
+
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  content: [
+    "./src/**/*.{ts,tsx,js,jsx,mdx}",
+    "./src/app/**/*.{ts,tsx}",
+    "./src/components/**/*.{ts,tsx}",
+  ],
+  darkMode: ["class"],
+  theme: {
+    container: {
+      center: true,
+      padding: { DEFAULT: "1rem", sm: "1.5rem", lg: "2rem" },
+      screens: { "2xl": "1280px" },
+    },
+    extend: {
+      colors: {
+        // === FOREST GREEN (nouvelle palette principale, dérivée des rendus validés) ===
+        forest: {
+          50:  "#f1f6f1",   // very pale wash (cards hover)
+          100: "#dde9dd",   // light wash
+          200: "#bfd2bf",   // border subtle
+          300: "#94b395",   // accent light
+          400: "#6a8d6c",   // accent medium
+          500: "#4a7050",   // mid
+          600: "#365740",   // primary hover
+          700: "#2d5a3e",   // ← PRIMARY (CTA / sidebar pro/admin)
+          800: "#1f4d2e",   // ← PRIMARY DARK (sidebar foncé)
+          900: "#163724",   // titre dark / contrastes
+          950: "#0c2317",
+        },
+        // === CREAM / BEIGE (fonds chaleureux) ===
+        cream: {
+          50:  "#fdfbf6",   // bg principal le plus clair
+          100: "#faf6ec",   // ← BG par défaut
+          200: "#f5efdd",   // sidebar particulier
+          300: "#ede3c8",   // borders cream
+          400: "#dccfaa",   // accent beige
+          500: "#c4b285",   // borders marqués
+          600: "#a09064",
+          700: "#7e7150",
+          800: "#5e5440",
+          900: "#3f3a2e",
+        },
+        // === ACCENTS CHAUDS NATURELS ===
+        amber: {
+          50:  "#fffaeb",
+          100: "#fef0c7",
+          200: "#fde08a",
+          300: "#fcc94d",
+          400: "#fbbf24",
+          500: "#f59e0b",
+          600: "#d97706",
+          700: "#b45309",
+          800: "#92400e",
+          900: "#78350f",
+        },
+        terracotta: {
+          50:  "#fdf4ef",
+          100: "#fbe5d6",
+          200: "#f7c7a8",
+          300: "#f0a273",
+          400: "#e8835c",
+          500: "#dc6c40",
+          600: "#c45530",
+          700: "#a3422a",
+          800: "#7e3624",
+          900: "#5e2a1d",
+        },
+
+        // === LEGACY REMAP — teal/sage/copper → forest pour compat code existant ===
+        // Toutes les classes `bg-teal-700`, `text-sage-100`, `border-copper-600` etc. présentes
+        // dans la codebase v2.0/v2.1/v2.2/v2.3 héritent automatiquement de la nouvelle DA.
+        teal: {
+          50:  "#f1f6f1",
+          100: "#dde9dd",
+          200: "#bfd2bf",
+          300: "#94b395",
+          400: "#6a8d6c",
+          500: "#4a7050",
+          600: "#365740",
+          700: "#2d5a3e",   // ex teal-700 → forest-700
+          800: "#1f4d2e",   // ex teal-800 → forest-800
+          900: "#163724",
+          950: "#0c2317",
+        },
+        sage: {
+          50:  "#fdfbf6",
+          100: "#faf6ec",
+          200: "#f5efdd",
+          300: "#ede3c8",
+          400: "#dccfaa",
+          500: "#c4b285",
+          600: "#a09064",
+          700: "#7e7150",
+          800: "#5e5440",
+          900: "#3f3a2e",
+        },
+        copper: {
+          50:  "#fdf4ef",
+          100: "#fbe5d6",
+          200: "#f7c7a8",
+          300: "#f0a273",
+          400: "#e8835c",
+          500: "#dc6c40",
+          600: "#c45530",
+          700: "#a3422a",
+          800: "#7e3624",
+          900: "#5e2a1d",
+        },
+        // Stone retravaillée vers cream pour fonds chaleureux
+        stone: {
+          50:  "#fdfbf6",
+          100: "#faf6ec",
+          200: "#f5efdd",
+          300: "#e8ddc4",
+          400: "#bfb39a",
+          500: "#9a8e75",
+          600: "#73685a",
+          700: "#544b3f",
+          800: "#3a342c",
+          900: "#252118",
+          950: "#15120c",
+        },
+        // Slate remap → forest-tinted neutres (pour pages admin / settings historiques)
+        slate: {
+          50:  "#fdfbf6",
+          100: "#faf6ec",
+          200: "#ede3c8",
+          300: "#cfd6cf",
+          400: "#94b395",
+          500: "#6a8d6c",
+          600: "#4a7050",
+          700: "#365740",
+          800: "#1f4d2e",
+          900: "#163724",
+          950: "#0c2317",
+        },
+
+        // === ÉTATS SÉMANTIQUES ===
+        success: {
+          50:  "#f0fdf4",
+          100: "#dcfce7",
+          500: "#22c55e",
+          600: "#16a34a",
+          700: "#15803d",
+          800: "#166534",
+        },
+        warning: {
+          50:  "#fffbeb",
+          100: "#fef3c7",
+          500: "#f59e0b",
+          600: "#d97706",
+          700: "#b45309",
+        },
+        error: {
+          50:  "#fef2f2",
+          100: "#fee2e2",
+          500: "#ef4444",
+          600: "#dc2626",
+          700: "#b91c1c",
+        },
+        info: {
+          50:  "#eff6ff",
+          100: "#dbeafe",
+          500: "#3b82f6",
+          600: "#2563eb",
+          700: "#1d4ed8",
+        },
+
+        // === DPE LABELS — couleurs exactes rendus validés ===
+        dpe: {
+          a: "#2d7a3e",
+          b: "#5ba13f",
+          c: "#a9c440",
+          d: "#f4d03f",
+          e: "#f5ab35",
+          f: "#e8763f",
+          g: "#c7402e",
+        },
+
+        // === TOKENS SÉMANTIQUES SHADCN — référencent CSS vars (globals.css) ===
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+      },
+      fontFamily: {
+        serif: ["var(--font-serif)", "Source Serif 4", "Georgia", "serif"],
+        sans:  ["var(--font-sans)", "Inter", "system-ui", "sans-serif"],
+        mono:  ["var(--font-mono)", "JetBrains Mono", "Menlo", "monospace"],
+      },
+      fontSize: {
+        "2xs":  ["0.625rem", { lineHeight: "0.875rem" }],
+        "3xs":  ["0.5rem",   { lineHeight: "0.75rem" }],
+      },
+      borderRadius: {
+        "lg": "12px",
+        "xl": "16px",
+        "2xl": "20px",
+        "3xl": "24px",
+      },
+      boxShadow: {
+        // Ombres très douces alignées rendus validés
+        "soft":     "0 1px 2px rgba(31, 77, 46, .04), 0 1px 1px rgba(31, 77, 46, .03)",
+        "elevated": "0 4px 12px rgba(31, 77, 46, .06), 0 2px 4px rgba(31, 77, 46, .04)",
+        "floating": "0 16px 40px rgba(31, 77, 46, .10), 0 4px 8px rgba(31, 77, 46, .04)",
+        "card":     "0 1px 3px rgba(31, 77, 46, .04), 0 1px 2px rgba(31, 77, 46, .03)",
+        "ring":     "0 0 0 3px rgba(45, 90, 62, .25)",
+      },
+      keyframes: {
+        "fade-in":   { from: { opacity: "0" }, to: { opacity: "1" } },
+        "slide-up":  {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to:   { opacity: "1", transform: "translateY(0)" },
+        },
+        "pulse-soft": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.6" },
+        },
+        "shimmer": {
+          from: { backgroundPosition: "-200% 0" },
+          to:   { backgroundPosition: "200% 0" },
+        },
+      },
+      animation: {
+        "fade-in":     "fade-in 200ms ease-out",
+        "slide-up":    "slide-up 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "pulse-soft":  "pulse-soft 2s ease-in-out infinite",
+        "shimmer":     "shimmer 2s linear infinite",
+      },
+      backgroundImage: {
+        "shimmer": "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
+        "hero-gradient": "linear-gradient(180deg, #faf6ec 0%, #fdfbf6 100%)",
+        "section-cream": "linear-gradient(180deg, #fdfbf6 0%, #faf6ec 100%)",
+        "forest-gradient": "linear-gradient(135deg, #1f4d2e 0%, #2d5a3e 100%)",
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;

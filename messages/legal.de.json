@@ -1,0 +1,68 @@
+{
+  "legal": {
+    "nav": {
+      "heading": "Rechtliche Hinweise",
+      "ariaLabel": "Navigation rechtliche Seiten",
+      "warningTitle": "Vorlagen — juristische Prüfung erforderlich",
+      "warningBody": "Diese Dokumente sind generische Vorlagen zur Orientierung. Sie stellen keine Rechtsberatung dar und müssen vor Veröffentlichung oder Berufung von Ihrem Rechtsbeistand geprüft, angepasst und validiert werden. Rechtlich verbindliche Fassung: französisch.",
+      "items": { "cgu": "Nutzungsbedingungen", "cgv": "Verkaufsbedingungen", "privacy": "Datenschutz (DSGVO)", "cookies": "Cookies", "mentions": "Impressum (FR)" }
+    },
+    "cgu": {
+      "title": "Allgemeine Nutzungsbedingungen",
+      "lastUpdated": "Letzte Aktualisierung: 9. Mai 2026 — Verbindliche Version: französisch",
+      "s1": { "title": "1. Gegenstand", "body": "Diese AGB regeln den Zugang zum und die Nutzung des Online-Dienstes Réno·Calc Pro. Verbindliche Fassung: französisch." },
+      "s2": { "title": "2. Verfügbarkeit", "body": "Dienst rund um die Uhr verfügbar, ausser bei höherer Gewalt oder Wartung." },
+      "s3": { "title": "3. Konto", "body": "Genaue Angaben erforderlich. Kontolöschung jederzeit möglich; Datenlöschung innerhalb von 30 Tagen." },
+      "s4": { "title": "4. Beschreibung des Dienstes", "body": "Energieaudit-Rechner gemäß 3CL-DPE 2021, Premium-PDF-Vorlagen, Materialbibliothek, Sanierungsszenarien. Diese Schätzungen ersetzen KEINEN regulatorischen DPE oder regulatorisches Energieaudit." },
+      "s5": { "title": "5. Geistiges Eigentum", "body": "Alle Elemente des Dienstes sind ausschließliches Eigentum von Réno·Calc Pro." },
+      "s6": { "title": "6. Pflichten des Nutzers", "body": "Konforme, gesetzeskonforme Nutzung. Verboten: illegal, betrügerisch oder Drittrechte verletzend." },
+      "s7": { "title": "7. Haftung", "body": "Best-Effort-Service. Haftung begrenzt auf in den letzten 12 Monaten gezahlte Beträge." },
+      "s8": { "title": "8. Aussetzung und Kündigung", "body": "Aussetzung bei nachgewiesenem Verstoß. Freie Kündigung über persönlichen Bereich." },
+      "s9": { "title": "9. Änderungen der AGB", "body": "Mitteilung per E-Mail mindestens 30 Tage vor Inkrafttreten." },
+      "s10": { "title": "10. Anwendbares Recht", "body": "Französisches Recht, französische Gerichte. Verbrauchermediation möglich." }
+    },
+    "cgv": {
+      "title": "Allgemeine Verkaufsbedingungen",
+      "lastUpdated": "Letzte Aktualisierung: 9. Mai 2026 — Verbindliche Version: französisch",
+      "s1": { "title": "1. Gegenstand", "body": "Regelt kostenpflichtige Abonnements zum Réno·Calc Pro Service." },
+      "s2": { "title": "2. Tarife und Preise", "body": "Tarife auf https://renocalcpro.fr/pricing. Preise inkl. MwSt., in Euro." },
+      "s3": { "title": "3. Bestellung und Zahlung", "body": "Sichere Zahlung via Stripe. Monatliche oder jährliche Abos mit stillschweigender Verlängerung." },
+      "s4": { "title": "4. Lieferung des Dienstes", "body": "Sofortiger Zugang nach Zahlungsvalidierung." },
+      "s5": { "title": "5. Widerrufsrecht", "body": "Verzicht auf Widerrufsrecht durch sofortige Aktivierung des digitalen Inhalts (gemäß französischem Verbrauchergesetzbuch L. 221-28 13°)." },
+      "s6": { "title": "6. Garantie und Support", "body": "Lösungszeit 5 Werktage bei zurechenbarem Fehler. Anteilige Gutschrift möglich." },
+      "s7": { "title": "7. Aussetzung bei Nichtzahlung", "body": "3 Wiederholungsversuche in 14 Tagen, danach Aussetzung. Kündigung nach 30 Tagen möglich." },
+      "s8": { "title": "8. Mediation", "body": "Kostenfreier Verbrauchermediator gemäß französischem Recht möglich." }
+    },
+    "privacy": {
+      "title": "Datenschutzerklärung",
+      "lastUpdated": "Letzte Aktualisierung: 9. Mai 2026 — DSGVO-konform (Verordnung EU 2016/679)",
+      "s1": { "title": "1. Verantwortlicher", "body": "VA ETHICS GROUP. Kontakt: rgpd@renocalcpro.fr" },
+      "s2": { "title": "2. Datenschutzbeauftragter", "body": "DSGVO-Anfragen an rgpd@renocalcpro.fr." },
+      "s3": { "title": "3. Erhobene Daten", "body": "Kontodaten, Audit-Akte, Fotos, Zahlungsdaten via Stripe, anonyme Metriken." },
+      "s4": { "title": "4. Zwecke und Rechtsgrundlagen", "body": "Vertragserfüllung, gesetzliche Verpflichtung, berechtigtes Interesse, ausdrückliche Einwilligung." },
+      "s5": { "title": "5. Aufbewahrungsfristen", "body": "Aktives Konto: unbegrenzt. Inaktiv: 3 Jahre. Audits: 5 Jahre. Rechnungen: 10 Jahre." },
+      "s6": { "title": "6. Empfänger", "body": "OVH SAS (Frankreich, Hosting), Resend (Deutschland, E-Mail), Stripe (Irland, Zahlungen), Anthropic (KI opt-in), Plausible (Analytik)." },
+      "s7": { "title": "7. Übermittlung außerhalb der EU", "body": "Anthropic kann Daten in den USA verarbeiten, mit Standardvertragsklauseln (Beschluss 2021/914)." },
+      "s8": { "title": "8. Ihre Rechte", "body": "Auskunft, Berichtigung, Löschung, Übertragbarkeit, Widerspruch, Einschränkung. Ausübung über rgpd@renocalcpro.fr in unter 30 Tagen. Beschwerde bei der CNIL möglich." },
+      "s9": { "title": "9. Datensicherheit", "body": "TLS 1.3, Verschlüsselung im Ruhezustand, GPG-AES256-Backups, HMAC-SHA256-Audit-Log, Magic-Link 15 Min., jährliche Sicherheitsschulung." },
+      "s10": { "title": "10. Cookies", "body": "Siehe dedizierte Cookie-Richtlinie. Keine Werbe-Cookies, kein Drittanbieter-Tracking." },
+      "s11": { "title": "11. Meldung von Verletzungen", "body": "Meldung an die CNIL innerhalb von 72 Stunden (Art. 33 DSGVO)." },
+      "s12": { "title": "12. Änderungen", "body": "Mitteilung per E-Mail mindestens 30 Tage vor Inkrafttreten." }
+    },
+    "cookies": {
+      "title": "Cookie-Richtlinie",
+      "lastUpdated": "Letzte Aktualisierung: 9. Mai 2026",
+      "s1": { "title": "1. Minimaler Ansatz", "body": "Keine Werbe-Cookies, kein Drittanbieter-Tracking. Plausible Analytics ohne Cookies." },
+      "s2": { "title": "2. Strikt notwendige Cookies", "body": "Folgende Cookies sind essentiell und benötigen keine Einwilligung gemäß ePrivacy-Richtlinie:" },
+      "table": {
+        "title": "Liste der verwendeten Cookies",
+        "col1": "Name", "col2": "Zweck", "col3": "Typ", "col4": "Dauer",
+        "row1Purpose": "NextAuth Sitzungsauthentifizierung", "row1Type": "Essentiell",
+        "row2Purpose": "CSRF-Angriffsschutz", "row2Type": "Essentiell",
+        "row3Purpose": "Sprachauswahl merken", "row3Type": "Präferenz",
+        "session": "Sitzung", "year": "Jahr"
+      },
+      "s3": { "title": "3. Ihre Wahl", "body": "Sie können Cookies jederzeit in Ihrem Browser blockieren oder löschen." }
+    }
+  }
+}

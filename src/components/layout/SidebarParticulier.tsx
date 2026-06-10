@@ -1,0 +1,226 @@
+// components/layout/SidebarParticulier.tsx — Sidebar espace particulier v4.0
+// « Energy Trust » : bleu nuit profond + icônes sobres Lucide + accent vert
+// énergie sur item actif. Plus d'emojis, plus de cream beige, plus de fond
+// chaleureux : on cible un rendu audit énergétique premium expert.
+
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { useTranslations } from "next-intl";
+import {
+  Home,
+  FolderKanban,
+  Wallet,
+  FileText,
+  Settings,
+  LifeBuoy,
+  Menu as MenuIcon,
+  X as CloseIcon,
+  Globe,
+  type LucideIcon,
+} from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
+import {
+  SidebarAccountSwitcher,
+  type ProfileKind,
+} from "./SidebarAccountSwitcher";
+
+interface Props {
+  locale: string;
+  /** Persona connecté — déduit côté server. Par défaut : PARTICULIER. */
+  currentProfile?: ProfileKind;
+  /** Email/nom à afficher dans la carte compte. */
+  userIdentifier?: string;
+  /** Liste des profils accessibles à cet utilisateur. */
+  availableProfiles?: ReadonlyArray<ProfileKind>;
+}
+
+interface NavEntry {
+  href: string;
+  Icon: LucideIcon;
+  labelKey: "navTableau" | "navProjets" | "navAides" | "navDocuments" | "navAccount";
+}
+
+const NAV: ReadonlyArray<NavEntry> = [
+  { href: "/p/dashboard", Icon: Home,         labelKey: "navTableau" },
+  { href: "/p/projects",  Icon: FolderKanban, labelKey: "navProjets" },
+  { href: "/p/aids",      Icon: Wallet,       labelKey: "navAides" },
+  { href: "/p/documents", Icon: FileText,     labelKey: "navDocuments" },
+  { href: "/p/account",   Icon: Settings,     labelKey: "navAccount" },
+] as const;
+
+export function SidebarParticulier({
+  locale,
+  currentProfile = "PARTICULIER",
+  userIdentifier,
+  availableProfiles = ["PARTICULIER"],
+}: Props) {
+  const pathname = usePathname();
+  const t = useTranslations("pSidebar");
+  const tAccount = useTranslations("sidebarAccount");
+  // A11y / i18n : si le parent n'a pas passé un userIdentifier dynamique,
+  // on tombe sur la clé `sidebarAccount.myAccount` traduite — plus de
+  // hardcoded FR "Mon compte" sur les pages /en/, /es/, etc.
+  const displayUserIdentifier = userIdentifier ?? tAccount("myAccount");
+  const [open, setOpen] = useState(false);
+
+  function isActive(href: string) {
+    return pathname?.includes(href);
+  }
+
+  const navItems = (
+    <ul className="space-y-0.5">
+      {NAV.map(({ href, Icon, labelKey }) => {
+        const active = isActive(href);
+        const label = t(labelKey);
+        return (
+          <li key={href}>
+            <Link
+              href={`/${locale}${href}`}
+              onClick={() => setOpen(false)}
+              aria-current={active ? "page" : undefined}
+              className={[
+                "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                active
+                  ? "bg-night-700 text-white"
+                  : "text-cream-100/85 hover:bg-night-700/60 hover:text-white",
+              ].join(" ")}
+            >
+              {active && (
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-forest-500"
+                />
+              )}
+              <Icon
+                aria-hidden
+                className={[
+                  "h-[18px] w-[18px] shrink-0",
+                  active ? "text-forest-400" : "text-cream-100/70",
+                ].join(" ")}
+                strokeWidth={1.75}
+              />
+              <span>{label}</span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  return (
+    <>
+      {/* Hamburger mobile — bouton sobre, icône lucide */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={t("openMenu")}
+        className="fixed left-3 top-3 z-30 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-cream-300 bg-white text-night-800 shadow-card transition-colors hover:bg-cream-50 md:hidden"
+      >
+        <MenuIcon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+      </button>
+
+      {/* Backdrop mobile — voile bleu nuit */}
+      {open && (
+        <div
+          className="fixed inset-0 z-30 bg-night-900/55 backdrop-blur-sm md:hidden"
+          onClick={() => setOpen(false)}
+          aria-hidden
+        />
+      )}
+
+      {/* Sidebar bleu nuit */}
+      <aside
+        aria-label={t("ariaNav")}
+        className={[
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-night-900 bg-night-800 p-5 text-cream-100 transition-transform md:static md:translate-x-0",
+          open ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+        ].join(" ")}
+      >
+        {/* Header — Logo light (blanc + vert énergie) sur fond bleu nuit */}
+        <div className="mb-6 flex items-center justify-between">
+          <Logo
+            href={`/${locale}/p/dashboard`}
+            variant="wordmark"
+            theme="light"
+            className="text-base"
+          />
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label={t("closeMenu")}
+            className="rounded-md p-1 text-cream-100/70 transition-colors hover:bg-night-700 hover:text-white md:hidden"
+          >
+            <CloseIcon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+          </button>
+        </div>
+
+        {/* Badge espace — sobre, vert énergie */}
+        <div className="mb-5 inline-flex w-fit items-center gap-1.5 rounded-full bg-forest-500/15 px-3 py-1 text-2xs font-semibold uppercase tracking-wider text-forest-400">
+          <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-forest-500" />
+          {t("espaceParticulier")}
+        </div>
+
+        {/* Section title */}
+        <h3 className="mb-1.5 px-3 text-2xs font-semibold uppercase tracking-wider text-night-200/80">
+          {t("navTitle")}
+        </h3>
+
+        {/* Navigation */}
+        <nav className="flex-1" aria-label={t("ariaSections")}>
+          {navItems}
+
+          {/* Retour à la page d'accueil publique */}
+          <div className="mt-4 border-t border-night-700/60 pt-3">
+            <Link
+              href={`/${locale}`}
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-cream-100/70 transition-colors hover:bg-night-700/60 hover:text-white"
+            >
+              <Globe
+                className="h-[18px] w-[18px] shrink-0 text-cream-100/60"
+                strokeWidth={1.75}
+                aria-hidden
+              />
+              <span>{t("backToSite")}</span>
+            </Link>
+          </div>
+        </nav>
+
+        {/* Carte aide */}
+        <div className="mt-6 rounded-xl border border-night-700 bg-night-900/50 p-4">
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-forest-500/15 text-forest-400"
+            >
+              <LifeBuoy className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white">{t("helpTitle")}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-cream-100/70">
+                {t("helpBody")}
+              </p>
+            </div>
+          </div>
+          <Link
+            href={`/${locale}/contact`}
+            className="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-night-600 bg-night-800/80 px-3 py-2 text-xs font-semibold text-cream-100 transition-colors hover:border-forest-500 hover:bg-night-700 hover:text-white"
+          >
+            {t("contactCta")}
+          </Link>
+        </div>
+
+        {/* Carte compte + switcher d'espaces + déconnexion */}
+        <SidebarAccountSwitcher
+          locale={locale}
+          currentProfile={currentProfile}
+          userIdentifier={displayUserIdentifier}
+          availableProfiles={availableProfiles}
+        />
+      </aside>
+    </>
+  );
+}

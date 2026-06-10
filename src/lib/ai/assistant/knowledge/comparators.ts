@@ -1,0 +1,481 @@
+// lib/ai/assistant/knowledge/comparators.ts
+// Comparateurs structurés "aide au choix" : isolant vs isolant, système vs système, etc.
+// L'IA s'appuie dessus pour répondre à "Quelle solution choisir ?".
+//
+// Chaque comparateur fournit :
+//   - un cadre de comparaison (axes : performance, coût, faisabilité, confort, compatibilité)
+//   - les options envisageables
+//   - les "winners" par axe
+//   - les conditions d'éligibilité / contre-indications
+//   - les compromis explicites
+
+export interface ComparisonAxis {
+  /** Identifiant de l'axe : "performance", "cost", "comfort_summer", … */
+  key: string;
+  /** Libellé court */
+  label: string;
+  /** Description : pourquoi cet axe est important */
+  rationale: string;
+  /** Plus c'est haut, mieux c'est ? (true) ou plus c'est bas, mieux c'est ? (false) */
+  higherIsBetter: boolean;
+}
+
+export interface ComparisonOption {
+  /** Identifiant : "ite_pse", "iti_laine_verre", "monomur"… */
+  key: string;
+  /** Libellé pour affichage */
+  label: string;
+  /** Score par axe (0-10) */
+  scores: Record<string, number>;
+  /** Avantages clés (3-5 max) */
+  pros: string[];
+  /** Inconvénients clés (3-5 max) */
+  cons: string[];
+  /** Coût indicatif € TTC / m² (matériel + pose) */
+  costPerM2Range: [number, number];
+  /** Conditions d'éligibilité (bâti compatible) */
+  eligibility: string[];
+  /** Contre-indications majeures */
+  contraindications: string[];
+  /** Aides typiquement mobilisables */
+  applicableAids: string[];
+}
+
+export interface Comparator {
+  /** Référence : "wall_insulation", "heating_change_for_oil_house"… */
+  ref: string;
+  /** Question utilisateur typique */
+  userQuestion: string;
+  /** Contexte d'application */
+  applicableWhen: string;
+  /** Axes de comparaison */
+  axes: ComparisonAxis[];
+  /** Options à comparer */
+  options: ComparisonOption[];
+  /** Recommandation par profil bâti (texte court) */
+  recommendationByProfile: Array<{ profile: string; recommendation: string }>;
+  /** Mises en garde transverses */
+  warnings: string[];
+}
+
+export const COMPARATORS: Record<string, Comparator> = {
+  wall_insulation: {
+    ref: "wall_insulation",
+    userQuestion: "Quel type d'isolation des murs choisir : extérieure, intérieure, ou répartie ?",
+    applicableWhen: "Le bâtiment a des murs extérieurs sans isolation ou faiblement isolés (R < 2 m².K/W).",
+    axes: [
+      { key: "performance", label: "Performance thermique", rationale: "Niveau de résistance R atteignable", higherIsBetter: true },
+      { key: "cost", label: "Coût initial €/m²", rationale: "Investissement nécessaire", higherIsBetter: false },
+      { key: "comfort_summer", label: "Confort d'été", rationale: "Inertie + protection des parois chauffées par le soleil", higherIsBetter: true },
+      { key: "comfort_winter", label: "Confort d'hiver", rationale: "Suppression des parois froides", higherIsBetter: true },
+      { key: "feasibility", label: "Faisabilité chantier", rationale: "Difficulté + nuisances + délais", higherIsBetter: true },
+      { key: "habitable_loss", label: "Perte de surface habitable", rationale: "Surface vivable perdue", higherIsBetter: false },
+      { key: "compatibility_old", label: "Compatibilité bâti ancien", rationale: "Respect du fonctionnement hygrothermique", higherIsBetter: true },
+    ],
+    options: [
+      {
+        key: "ite_pse_enduit",
+        label: "ITE polystyrène + enduit",
+        scores: { performance: 9, cost: 6, comfort_summer: 7, comfort_winter: 9, feasibility: 6, habitable_loss: 10, compatibility_old: 3 },
+        pros: [
+          "Performance maximale (R = 4-6 m².K/W facilement atteint)",
+          "Pas de perte de surface habitable",
+          "Suppression des ponts thermiques",
+          "Ravalement combiné = double bénéfice",
+        ],
+        cons: [
+          "Coût élevé (130-200 €/m²)",
+          "Modification d'aspect façade (autorisations urbanisme)",
+          "Incompatible avec façades patrimoniales",
+          "Peu respirante : risque pour bâti ancien",
+        ],
+        costPerM2Range: [130, 200],
+        eligibility: ["Maison individuelle", "Petit collectif", "Ravalement nécessaire ou possible", "Pas de contraintes architecturales fortes"],
+        contraindications: ["Façade en pierre apparente protégée", "Bâti < 1948 sans étude hygrométrique", "Saillies architecturales nombreuses"],
+        applicableAids: ["MaPrimeRénov' Sérénité (forfait ou %)", "CEE coup de pouce isolation", "Eco-PTZ"],
+      },
+      {
+        key: "ite_laine_minerale",
+        label: "ITE laine minérale + bardage",
+        scores: { performance: 9, cost: 4, comfort_summer: 8, comfort_winter: 9, feasibility: 5, habitable_loss: 10, compatibility_old: 6 },
+        pros: [
+          "Excellente performance",
+          "Plus respirante que PSE (moins risquée bâti ancien)",
+          "Bardage permet effet de mur ventilé (confort été)",
+          "Choix esthétiques larges (bois, métal, fibrociment)",
+        ],
+        cons: [
+          "Coût plus élevé (180-280 €/m²)",
+          "Mise en œuvre plus technique",
+          "Modification d'aspect façade",
+        ],
+        costPerM2Range: [180, 280],
+        eligibility: ["Maison individuelle", "Petit collectif", "Bâti d'avant 1948 si étude hygro favorable"],
+        contraindications: ["Façade patrimoniale apparente"],
+        applicableAids: ["MaPrimeRénov'", "CEE", "Eco-PTZ", "Aides régionales"],
+      },
+      {
+        key: "iti_laine_verre",
+        label: "ITI laine de verre + placo",
+        scores: { performance: 7, cost: 9, comfort_summer: 4, comfort_winter: 8, feasibility: 8, habitable_loss: 5, compatibility_old: 4 },
+        pros: [
+          "Coût accessible (50-90 €/m²)",
+          "Mise en œuvre simple, par pièce",
+          "Pas de modification d'aspect extérieur",
+          "Réversible (plus ou moins)",
+        ],
+        cons: [
+          "Perte de surface habitable (8-15 cm × périmètre intérieur)",
+          "Ponts thermiques persistants (planchers, refends)",
+          "Inertie réduite (mauvais confort été)",
+          "Risque hygrométrique sur bâti ancien si pare-vapeur mal posé",
+        ],
+        costPerM2Range: [50, 90],
+        eligibility: ["Tout type de bâti", "Petits budgets", "Façades à préserver"],
+        contraindications: ["Bâti ancien sans étude pare-vapeur (risque condensation interstitielle)"],
+        applicableAids: ["MaPrimeRénov'", "CEE"],
+      },
+      {
+        key: "ite_chaux_chanvre",
+        label: "ITE chaux-chanvre (bâti ancien)",
+        scores: { performance: 6, cost: 3, comfort_summer: 9, comfort_winter: 7, feasibility: 4, habitable_loss: 10, compatibility_old: 10 },
+        pros: [
+          "Idéal pour bâti ancien (perméable à la vapeur)",
+          "Excellente régulation hygrothermique",
+          "Confort été remarquable (inertie + déphasage)",
+          "Matériau biosourcé, faible impact carbone",
+        ],
+        cons: [
+          "Performance moindre que polystyrène à épaisseur égale",
+          "Coût élevé (200-300 €/m²)",
+          "Mise en œuvre artisanale, peu d'entreprises",
+          "Délais de séchage importants",
+        ],
+        costPerM2Range: [200, 300],
+        eligibility: ["Bâti ancien (pierre, pisé, moellons)", "Maître d'œuvre familier de la chaux"],
+        contraindications: ["Murs en parpaing/béton (pas d'avantage hygro)"],
+        applicableAids: ["MaPrimeRénov'", "Aides parc ancien régionales"],
+      },
+    ],
+    recommendationByProfile: [
+      { profile: "Bâti récent (post-1975) en parpaing/béton, budget moyen, ravalement à prévoir", recommendation: "ITE polystyrène + enduit — meilleur ratio coût/performance, cumul rénovation façade." },
+      { profile: "Maison ancienne en pierre, propriétaire militant écologie", recommendation: "ITE chaux-chanvre — préserve le bâti, exceptionnel confort d'été." },
+      { profile: "Petit budget, façade à conserver, chantier à étaler", recommendation: "ITI laine minérale par pièce — économique mais accepter inertie réduite et ponts thermiques." },
+      { profile: "Appartement en copropriété sans accord ravalement", recommendation: "ITI laine de verre — la seule option faisable seul." },
+    ],
+    warnings: [
+      "Ne JAMAIS faire d'ITE polystyrène sur un mur en pierre/pisé/moellon sans étude hygrométrique préalable — risque pathologie majeur.",
+      "Toujours vérifier l'étanchéité à l'air complémentaire — sans ça, l'isolation perd 30-40 % d'efficacité.",
+      "Ponts thermiques : en ITI, prévoir traitement des planchers intermédiaires sinon condensation au plafond.",
+    ],
+  },
+
+  heating_change_for_oil_house: {
+    ref: "heating_change_for_oil_house",
+    userQuestion: "Je dois remplacer ma chaudière fioul, quel système choisir ?",
+    applicableWhen: "Maison individuelle équipée d'une chaudière fioul (interdite à l'installation neuve depuis juillet 2022, remplacement fortement aidé).",
+    axes: [
+      { key: "performance", label: "Performance saisonnière (SCOP)", rationale: "Rendement réel sur l'année", higherIsBetter: true },
+      { key: "cost_install", label: "Coût installation €", rationale: "Investissement initial avant aides", higherIsBetter: false },
+      { key: "cost_run", label: "Coût d'usage annuel €", rationale: "Facture énergie", higherIsBetter: false },
+      { key: "ges", label: "Émissions GES", rationale: "Impact climat", higherIsBetter: false },
+      { key: "comfort", label: "Confort thermique", rationale: "Régulation, distribution, eau chaude", higherIsBetter: true },
+      { key: "feasibility", label: "Faisabilité installation", rationale: "Place nécessaire, raccordements", higherIsBetter: true },
+      { key: "aids_total", label: "Aides cumulables", rationale: "Coup de pouce + MPR + CEE", higherIsBetter: true },
+    ],
+    options: [
+      {
+        key: "pac_air_eau",
+        label: "Pompe à chaleur air-eau",
+        scores: { performance: 9, cost_install: 4, cost_run: 9, ges: 9, comfort: 8, feasibility: 8, aids_total: 10 },
+        pros: ["Rendement excellent (SCOP 3.5-4.5)", "Émissions GES faibles", "Aides massives (jusqu'à 11 000 € MPR + 4 000 € CEE)", "Compatible plancher chauffant existant ou radiateurs basse T°"],
+        cons: ["Investissement 12 000-18 000 €", "Bruit unité extérieure (à anticiper voisinage)", "Performance dégradée < -7 °C (appoint nécessaire)"],
+        costPerM2Range: [12000, 18000],
+        eligibility: ["Maison individuelle", "Place pour unité extérieure", "Radiateurs basse température OU plancher chauffant OU radiateurs surdimensionnés acceptables"],
+        contraindications: ["Radiateurs haute T° non remplaçables (perte de rendement)", "Voisinage très proche sensible au bruit"],
+        applicableAids: ["MaPrimeRénov' (jusqu'à 11 000 €)", "Coup de pouce CEE chauffage", "Eco-PTZ", "TVA 5,5 %"],
+      },
+      {
+        key: "pac_geothermique",
+        label: "Pompe à chaleur géothermique",
+        scores: { performance: 10, cost_install: 2, cost_run: 10, ges: 10, comfort: 10, feasibility: 4, aids_total: 9 },
+        pros: ["Rendement exceptionnel (SCOP 4.5-5)", "Très silencieuse", "Indépendante de la T° extérieure"],
+        cons: ["Investissement très élevé (20 000-35 000 €)", "Forage / capteurs horizontaux : terrain nécessaire", "ROI long sans rénovation enveloppe"],
+        costPerM2Range: [20000, 35000],
+        eligibility: ["Maison avec terrain (capteurs horizontaux) ou autorisation forage"],
+        contraindications: ["Maison de ville sans terrain", "Sol rocheux interdisant le forage"],
+        applicableAids: ["MaPrimeRénov'", "CEE", "Eco-PTZ"],
+      },
+      {
+        key: "chaudiere_granulés",
+        label: "Chaudière à granulés bois",
+        scores: { performance: 8, cost_install: 3, cost_run: 7, ges: 9, comfort: 8, feasibility: 6, aids_total: 9 },
+        pros: ["Énergie locale renouvelable", "Très bon rendement (>90%)", "Indépendance vis-à-vis du gaz/électricité", "Compatible radiateurs haute T° existants"],
+        cons: ["Investissement 17 000-25 000 €", "Place nécessaire pour silo de granulés (3-5 m³)", "Approvisionnement à anticiper", "Maintenance plus exigeante"],
+        costPerM2Range: [17000, 25000],
+        eligibility: ["Maison avec local technique > 8 m²", "Accès camion-silo possible"],
+        contraindications: ["Pas de place pour silo", "Centre urbain dense (livraison difficile)"],
+        applicableAids: ["MaPrimeRénov' (jusqu'à 11 000 €)", "Coup de pouce CEE", "Eco-PTZ"],
+      },
+      {
+        key: "chaudiere_gaz_condensation",
+        label: "Chaudière gaz à condensation (transition)",
+        scores: { performance: 7, cost_install: 8, cost_run: 6, ges: 4, comfort: 8, feasibility: 7, aids_total: 2 },
+        pros: ["Investissement modéré (4 000-8 000 €)", "Confort équivalent au fioul", "Compatible radiateurs existants", "Réversible (changement futur facile)"],
+        cons: ["Énergie fossile (GES non négligeables)", "Plus d'aide MPR sauf cas particuliers", "Risque de re-changement si interdiction gaz future"],
+        costPerM2Range: [4000, 8000],
+        eligibility: ["Raccordement gaz de ville ou citerne propane"],
+        contraindications: ["Pas de réseau gaz (sauf option propane onéreuse)"],
+        applicableAids: ["TVA 5,5 % seulement"],
+      },
+    ],
+    recommendationByProfile: [
+      { profile: "Maison correctement isolée + propriétaire occupant + revenus modestes", recommendation: "PAC air-eau — aides maximales, ROI ~7 ans avec aides." },
+      { profile: "Maison rurale + grand terrain + revenus élevés", recommendation: "PAC géothermique — investissement lourd mais rendement maximal et confort exemplaire." },
+      { profile: "Habitué du bois, place pour silo, valeurs énergie locale", recommendation: "Chaudière granulés — coût comparable PAC, énergie renouvelable, indépendance." },
+      { profile: "Petit budget, urgence remplacement, rénovation enveloppe à venir", recommendation: "Chaudière gaz condensation transitoire — accepter le compromis GES en attendant rénovation globale." },
+    ],
+    warnings: [
+      "AVANT toute substitution, vérifier l'enveloppe : remplacer fioul par PAC sur maison passoire = sous-dimensionnement et inconfort.",
+      "Bilan d'opportunité conseillé : étude thermique pour dimensionner correctement (un audit énergétique aide).",
+      "Anticiper la cuve à fioul : neutralisation obligatoire (~1 000 €).",
+    ],
+  },
+
+  // ── ISOLATION TOITURE ─────────────────────────────────────────────────────
+  roof_insulation: {
+    ref: "roof_insulation",
+    userQuestion: "Quelle isolation pour ma toiture : combles perdus soufflés, rampants, sarking ?",
+    applicableWhen: "Toiture sans isolation ou < 15 cm d'isolant.",
+    axes: [
+      { key: "performance", label: "Résistance R atteignable", rationale: "Capacité à atteindre R 7+", higherIsBetter: true },
+      { key: "cost", label: "Coût €/m²", rationale: "Investissement", higherIsBetter: false },
+      { key: "habitable_volume", label: "Préservation volume habitable", rationale: "Combles aménageables", higherIsBetter: true },
+      { key: "feasibility", label: "Faisabilité (logement occupé)", rationale: "Travaux non-invasifs", higherIsBetter: true },
+      { key: "comfort_summer", label: "Confort d'été", rationale: "Inertie + déphasage", higherIsBetter: true },
+    ],
+    options: [
+      {
+        key: "souffle_combles_perdus",
+        label: "Soufflage combles perdus (laine minérale ou ouate)",
+        scores: { performance: 10, cost: 10, habitable_volume: 0, feasibility: 10, comfort_summer: 6 },
+        pros: ["Le moins cher (15-30 €/m²)", "Très rapide (1 jour)", "R 7-10 atteignable facilement", "Pas de nuisance occupants"],
+        cons: ["Inutilisable si combles aménagés/aménageables", "Risque tassement long terme (-15 % à 20 ans)"],
+        costPerM2Range: [15, 30],
+        eligibility: ["Combles non habitables et non aménageables"],
+        contraindications: ["Combles aménageables (perte de volume)"],
+        applicableAids: ["MaPrimeRénov' (jusqu'à 25 €/m²)", "CEE coup de pouce isolation", "TVA 5,5 %"],
+      },
+      {
+        key: "rampants_sous_chevrons",
+        label: "Isolation rampants sous chevrons (entre + sous chevrons)",
+        scores: { performance: 8, cost: 6, habitable_volume: 4, feasibility: 4, comfort_summer: 7 },
+        pros: ["Compatible combles aménagés", "R 6-8 possible avec 2 lits croisés"],
+        cons: ["Coût élevé (60-100 €/m²)", "Perte hauteur sous plafond", "Travaux invasifs (refaire placo)"],
+        costPerM2Range: [60, 100],
+        eligibility: ["Combles aménagés ou aménageables"],
+        contraindications: ["Hauteur sous plafond déjà juste"],
+        applicableAids: ["MaPrimeRénov'", "CEE", "Eco-PTZ"],
+      },
+      {
+        key: "sarking",
+        label: "Sarking (isolation par-dessus chevrons)",
+        scores: { performance: 10, cost: 3, habitable_volume: 10, feasibility: 3, comfort_summer: 9 },
+        pros: ["Préserve 100 % volume habitable", "R 8-10 facile", "Suppression ponts thermiques chevrons", "Excellent confort été"],
+        cons: ["Très coûteux (180-300 €/m²)", "Nécessite refaire couverture (cumul intéressant si toiture à refaire)", "Travaux longs"],
+        costPerM2Range: [180, 300],
+        eligibility: ["Toiture à refaire de toute façon", "Volume sous combles à préserver"],
+        contraindications: ["Couverture en bon état (gaspillage)"],
+        applicableAids: ["MaPrimeRénov'", "CEE", "Eco-PTZ"],
+      },
+    ],
+    recommendationByProfile: [
+      { profile: "Combles perdus accessibles", recommendation: "Soufflage — meilleur ratio coût/perf, geste rentable n°1." },
+      { profile: "Combles aménagés ou aménageables", recommendation: "Rampants sous chevrons en standard, sarking si toiture à refaire." },
+      { profile: "Maison passive en projet", recommendation: "Sarking R 10+ pour étanchéité air et déphasage maximum." },
+    ],
+    warnings: [
+      "Toujours installer un pare-vapeur côté chaud (intérieur) en bâti étanche.",
+      "Vérifier la ventilation des combles AVANT isolation (risque condensation).",
+    ],
+  },
+
+  // ── ECS ───────────────────────────────────────────────────────────────────
+  dhw_change: {
+    ref: "dhw_change",
+    userQuestion: "Quel système ECS pour remplacer mon ballon électrique ?",
+    applicableWhen: "Ballon électrique vieillissant (> 12 ans) ou consommation ECS > 15 % facture annuelle.",
+    axes: [
+      { key: "performance", label: "Rendement", rationale: "Énergie utile / énergie consommée", higherIsBetter: true },
+      { key: "cost", label: "Coût installation", rationale: "Investissement", higherIsBetter: false },
+      { key: "running_cost", label: "Coût annuel d'usage", rationale: "Facture", higherIsBetter: false },
+      { key: "feasibility", label: "Faisabilité installation", rationale: "Place, raccordements", higherIsBetter: true },
+    ],
+    options: [
+      {
+        key: "ballon_thermodynamique",
+        label: "Ballon thermodynamique (PAC ECS)",
+        scores: { performance: 9, cost: 5, running_cost: 9, feasibility: 7 },
+        pros: ["3× moins consommation qu'électrique classique", "Aides MaPrimeRénov' (jusqu'à 1 200 €)", "ROI ~4-6 ans"],
+        cons: ["2-3 m² au sol minimum", "Bruit modéré (nécessite local technique)", "Installation 2 500-3 500 €"],
+        costPerM2Range: [2500, 3500],
+        eligibility: ["Local technique > 8 m³ ventilé", "Air extrait disponible (cellier, garage chaud)"],
+        contraindications: ["Pas de local adapté", "Salle de bain unique"],
+        applicableAids: ["MaPrimeRénov' (700-1 200 €)", "CEE", "TVA 5,5 %"],
+      },
+      {
+        key: "ces_solaire",
+        label: "Chauffe-eau solaire individuel (CESI)",
+        scores: { performance: 10, cost: 3, running_cost: 10, feasibility: 5 },
+        pros: ["50-70 % besoins ECS gratuits", "Écologique", "Économies long terme excellentes"],
+        cons: ["Investissement élevé (4 500-7 000 €)", "Nécessite toiture orientée sud", "Appoint électrique/gaz nécessaire"],
+        costPerM2Range: [4500, 7000],
+        eligibility: ["Toiture orientée sud-est à sud-ouest, peu d'ombrage", "Espace ballon stratifié (200-300 L)"],
+        contraindications: ["Toiture nord ou ombragée"],
+        applicableAids: ["MaPrimeRénov' (jusqu'à 4 000 €)", "CEE", "Eco-PTZ"],
+      },
+      {
+        key: "ballon_electrique_simple",
+        label: "Remplacement à l'identique (ballon électrique)",
+        scores: { performance: 4, cost: 10, running_cost: 3, feasibility: 10 },
+        pros: ["Investissement minimal (400-700 €)", "Installation rapide (1/2 journée)"],
+        cons: ["Aucune aide", "Facture annuelle élevée", "Solution non durable"],
+        costPerM2Range: [400, 700],
+        eligibility: ["Tous"],
+        contraindications: ["Politique transition énergétique du ménage"],
+        applicableAids: ["TVA 5,5 % uniquement"],
+      },
+    ],
+    recommendationByProfile: [
+      { profile: "Famille 4 personnes, local technique disponible", recommendation: "Ballon thermodynamique — meilleur ROI et aides solides." },
+      { profile: "Maison sud sans ombrage, projet long terme", recommendation: "CESI + appoint thermodynamique = combinaison gagnante." },
+      { profile: "Petit budget, urgence panne", recommendation: "Remplacement identique transitoire, anticiper changement durable au prochain cycle." },
+    ],
+    warnings: [
+      "Vérifier le débit ECS pic du foyer avant choix volume.",
+      "Prévoir disjoncteur dédié + sécurité thermique pour thermodynamique.",
+    ],
+  },
+
+  // ── VENTILATION ───────────────────────────────────────────────────────────
+  ventilation_choice: {
+    ref: "ventilation_choice",
+    userQuestion: "Quelle ventilation choisir : naturelle, simple flux hygro, double flux ?",
+    applicableWhen: "Ventilation naturelle inexistante ou VMC très ancienne.",
+    axes: [
+      { key: "energy_recovery", label: "Récupération chaleur", rationale: "Récup chaleur air sortant", higherIsBetter: true },
+      { key: "iaq", label: "Qualité air intérieur", rationale: "Renouvellement contrôlé", higherIsBetter: true },
+      { key: "cost", label: "Coût installation", rationale: "Matériel + pose", higherIsBetter: false },
+      { key: "compatibility_old", label: "Compatibilité bâti ancien", rationale: "Avec murs perspirants", higherIsBetter: true },
+    ],
+    options: [
+      {
+        key: "vmc_simple_flux_hygro_b",
+        label: "VMC simple flux hygroréglable type B",
+        scores: { energy_recovery: 0, iaq: 7, cost: 8, compatibility_old: 8 },
+        pros: ["Coût modéré (1 000-2 000 €)", "Bouches s'ajustent à l'humidité (économie débit)", "Compatible bâti ancien"],
+        cons: ["Pas de récupération chaleur (perte 15 % besoin chauffage)"],
+        costPerM2Range: [1000, 2000],
+        eligibility: ["Tous bâtis"],
+        contraindications: [],
+        applicableAids: ["MaPrimeRénov' (jusqu'à 1 500 €)", "CEE"],
+      },
+      {
+        key: "vmc_double_flux",
+        label: "VMC double flux à haut rendement",
+        scores: { energy_recovery: 10, iaq: 10, cost: 4, compatibility_old: 4 },
+        pros: ["Récupération 70-90 % chaleur (économie 10-20 % facture)", "Air filtré (pollens, particules)", "Confort thermique maximal"],
+        cons: ["Coût élevé (4 000-8 000 €)", "Réseau gaines volumineux", "Maintenance filtres régulière", "Risque pathologie sur bâti ancien non étanche"],
+        costPerM2Range: [4000, 8000],
+        eligibility: ["Bâti étanche (Q4Pa < 1)", "Place pour caisson + gaines"],
+        contraindications: ["Bâti ancien perspirant", "Étanchéité air médiocre"],
+        applicableAids: ["MaPrimeRénov' (jusqu'à 4 000 €)", "CEE", "Eco-PTZ"],
+      },
+      {
+        key: "ventilation_naturelle_assistée",
+        label: "Ventilation naturelle assistée (extracteur en sortie)",
+        scores: { energy_recovery: 0, iaq: 5, cost: 10, compatibility_old: 10 },
+        pros: ["Très peu coûteux (200-500 €)", "Idéal bâti ancien", "Aucune mécanique complexe"],
+        cons: ["Débit non contrôlé", "Performance variable selon vent et T°"],
+        costPerM2Range: [200, 500],
+        eligibility: ["Bâti ancien perspirant", "Conduits existants haut/bas"],
+        contraindications: ["Bâti récent étanche"],
+        applicableAids: [],
+      },
+    ],
+    recommendationByProfile: [
+      { profile: "Maison RT 2012+ étanche", recommendation: "VMC double flux — l'investissement se rentabilise par les économies de chauffage." },
+      { profile: "Pavillon 1970-2000", recommendation: "VMC simple flux hygro B — bon compromis coût/efficacité." },
+      { profile: "Bâti ancien (avant 1948) en pierre/pisé", recommendation: "Ventilation naturelle assistée OU simple flux hygro — JAMAIS double flux sans étanchéité." },
+    ],
+    warnings: [
+      "Double flux + bâti non étanche = pathologie quasi-certaine (condensation interstitielle).",
+      "Dimensionner les débits selon NF EN 13779 ou DTU 68.3.",
+    ],
+  },
+
+  // ── VITRAGE ───────────────────────────────────────────────────────────────
+  glazing_change: {
+    ref: "glazing_change",
+    userQuestion: "Faut-il changer mes fenêtres : double VIR, triple vitrage, ou survitrage ?",
+    applicableWhen: "Fenêtres simple vitrage ou double vitrage > 25 ans (Uw > 2,8).",
+    axes: [
+      { key: "performance", label: "Performance Uw", rationale: "Plus bas = mieux isolant", higherIsBetter: false },
+      { key: "cost", label: "Coût €/fenêtre", rationale: "Matériel + pose", higherIsBetter: false },
+      { key: "comfort", label: "Confort thermique près baies", rationale: "Suppression paroi froide", higherIsBetter: true },
+      { key: "patrimoine", label: "Préservation patrimoine", rationale: "Conservation menuiseries d'origine", higherIsBetter: true },
+    ],
+    options: [
+      {
+        key: "double_vitrage_vir_argon",
+        label: "Double vitrage VIR argon (Uw 1,2-1,4)",
+        scores: { performance: 8, cost: 6, comfort: 9, patrimoine: 4 },
+        pros: ["Excellent ratio coût/performance", "Compatible RT 2012", "Disponible toutes menuiseries"],
+        cons: ["Remplacement complet menuiserie nécessaire", "Coût 400-800 €/fenêtre"],
+        costPerM2Range: [400, 800],
+        eligibility: ["Menuiseries à remplacer de toute façon"],
+        contraindications: ["Patrimoine protégé ABF"],
+        applicableAids: ["MaPrimeRénov' (jusqu'à 100 €/équipement)", "CEE", "TVA 5,5 %"],
+      },
+      {
+        key: "triple_vitrage",
+        label: "Triple vitrage (Uw 0,8-1,1)",
+        scores: { performance: 10, cost: 3, comfort: 10, patrimoine: 3 },
+        pros: ["Performance maximale (Passivhaus)", "Confort exceptionnel", "Acoustique améliorée"],
+        cons: ["Coût élevé (700-1 400 €/fenêtre)", "Plus lourd (renforcer dormants)", "Apports solaires hivernaux réduits"],
+        costPerM2Range: [700, 1400],
+        eligibility: ["Maison passive en projet", "Façade nord exposée"],
+        contraindications: ["Façade sud (perte gain solaire hiver)"],
+        applicableAids: ["MaPrimeRénov'", "CEE"],
+      },
+      {
+        key: "survitrage",
+        label: "Survitrage / double-fenêtre intérieure",
+        scores: { performance: 4, cost: 9, comfort: 6, patrimoine: 10 },
+        pros: ["Préserve menuiseries d'origine (patrimoine)", "Économique (200-400 €/fenêtre)", "Améliore acoustique"],
+        cons: ["Performance limitée (Uw final ~2,2)", "Manipulation contraignante (deux fenêtres à ouvrir)", "Risque condensation entre vitrages"],
+        costPerM2Range: [200, 400],
+        eligibility: ["Patrimoine protégé", "Petit budget"],
+        contraindications: ["Recherche performance maximale"],
+        applicableAids: ["TVA 5,5 % uniquement"],
+      },
+    ],
+    recommendationByProfile: [
+      { profile: "Maison RT 2005, fenêtres anciennes", recommendation: "Double vitrage VIR argon — meilleur ROI." },
+      { profile: "Façade sud exposée, performance maximale", recommendation: "Double VIR — triple vitrage perd les gains solaires précieux en hiver." },
+      { profile: "Maison de maître protégée ABF", recommendation: "Survitrage intérieur — seule option compatible patrimoine." },
+    ],
+    warnings: [
+      "Changer les fenêtres SANS améliorer la VMC = risque condensation/moisissures (étanchéité ↑).",
+      "Triple vitrage en façade sud = perte gain solaire hivernal de 20-30 %.",
+    ],
+  },
+};
+
+export function getComparator(ref: string): Comparator | null {
+  return COMPARATORS[ref] ?? null;
+}
+
+export function listComparators(): Comparator[] {
+  return Object.values(COMPARATORS);
+}

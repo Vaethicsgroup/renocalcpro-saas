@@ -1,0 +1,62 @@
+# ─── Réno·Calc Pro SaaS — Caddyfile ──────────────────────────────────────
+# TLS Let's Encrypt automatique. HTTP/2 + HTTP/3 actifs par défaut.
+# Headers de sécurité dupliqués au niveau du proxy (défense en profondeur).
+
+{
+    # Email pour Let's Encrypt — modifier en prod
+    email admin@renocalcpro.fr
+    # Désactive le serveur admin Caddy
+    admin off
+}
+
+# Redirection www → apex
+www.renocalcpro.fr {
+    redir https://renocalcpro.fr{uri} permanent
+}
+
+renocalcpro.fr, *.renocalcpro.fr {
+    encode zstd gzip
+
+    # Headers sécurité (en plus de ceux générés par Next.js — défense en profondeur)
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "accelerometer=(), camera=(), geolocation=(self), microphone=(), payment=()"
+        # Retire les headers révélateurs
+        -Server
+        -X-Powered-By
+    }
+
+    # Rate-limit basique au niveau Caddy (protection L7 avant l'app)
+    # Nécessite plugin caddy-ratelimit ou équivalent — sinon laisser au middleware Next.
+
+    # Limite taille upload à 12 Mo (cohérent avec serverActions.bodySizeLimit)
+    request_body {
+        max_size 12MB
+    }
+
+    # Reverse proxy vers Next.js
+    reverse_proxy web:3000 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        # Headers sortants vers le client : on laisse passer ce qu'envoie Next
+        flush_interval -1
+        transport http {
+            keepalive 30s
+            keepalive_idle_conns 100
+        }
+    }
+
+    # Logs structurés JSON
+    log {
+        output file /data/access.log {
+            roll_size 100mb
+            roll_keep 14
+        }
+        format json
+        level INFO
+    }
+}

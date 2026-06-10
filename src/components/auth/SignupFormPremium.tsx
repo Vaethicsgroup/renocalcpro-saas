@@ -1,0 +1,183 @@
+// components/auth/SignupFormPremium.tsx — Formulaire signup magic-link v2.6
+// v2.6 : utilise la server action requestSignupMagicLink (robuste dev/prod).
+//        Mode dev → "Lien envoyé (démo)" + bouton "Continuer en mode démo".
+//        Mode prod → vraie magic-link via NextAuth.
+//        i18n via useTranslations("signup").
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { Home, Briefcase, type LucideIcon } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { FormField, Input } from "@/components/ui/Input";
+import { requestSignupMagicLink } from "@/server/actions/signup";
+
+interface Props { locale: string }
+
+export function SignupFormPremium({ locale }: Props) {
+  const t = useTranslations("signup");
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [accountType, setAccountType] = useState<"individual" | "pro">("individual");
+  const [sent, setSent] = useState(false);
+  const [mocked, setMocked] = useState(false);
+  const [continueHref, setContinueHref] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const result = await requestSignupMagicLink({ email, accountType, locale });
+      if (!result.ok) {
+        if (result.error === "invalid_email") setError(t("error.invalidEmail"));
+        else setError(t("error.generic"));
+        return;
+      }
+      setSent(true);
+      setMocked(Boolean(result.mockedSent));
+      setContinueHref(result.redirectTo ?? null);
+    });
+  }
+
+  if (sent) {
+    return (
+      <div className="rounded-2xl border border-forest-200 bg-forest-50 p-6 text-center">
+        <p className="text-3xl" aria-hidden>📬</p>
+        <h3 className="mt-3 font-serif text-xl font-bold text-forest-900">
+          {t("sent.title")}
+        </h3>
+        <p className="mt-2 text-sm leading-relaxed text-forest-900/80">
+          {mocked ? (
+            <>
+              {t("sent.bodyMock")}
+              <br />
+              <span className="text-xs text-forest-900/65">({email})</span>
+            </>
+          ) : (
+            <>
+              {t.rich("sent.body", {
+                email,
+                strong: chunks => <strong className="text-forest-900">{chunks}</strong>,
+              })}
+            </>
+          )}
+        </p>
+
+        {/* Dev mode : bouton "Continuer en mode démo" car aucun email n'est réellement parti */}
+        {mocked && continueHref && (
+          <button
+            type="button"
+            onClick={() => router.push(continueHref)}
+            className="mt-5 inline-flex h-11 items-center justify-center rounded-lg bg-forest-700 px-5 text-sm font-semibold text-cream-50 shadow-sm transition hover:bg-forest-800"
+          >
+            {t("sent.continueDemo")} →
+          </button>
+        )}
+
+        <p className="mt-4 text-xs text-forest-900/65">
+          {t("sent.notReceived")}{" "}
+          <button
+            type="button"
+            onClick={() => { setSent(false); setMocked(false); setError(null); }}
+            className="font-semibold text-forest-700 underline hover:text-forest-800"
+          >
+            {t("sent.retry")}
+          </button>.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Switch profil — Lucide icons sobres (Energy Trust) */}
+      <div
+        className="grid grid-cols-2 gap-2 rounded-xl border border-cream-300 bg-cream-50 p-1.5"
+        role="radiogroup"
+        aria-label={t("accountType")}
+      >
+        {(
+          [
+            { key: "individual", label: t("individual"), Icon: Home },
+            { key: "pro",        label: t("pro"),        Icon: Briefcase },
+          ] as ReadonlyArray<{
+            key: "individual" | "pro";
+            label: string;
+            Icon: LucideIcon;
+          }>
+        ).map((opt) => (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => setAccountType(opt.key)}
+            role="radio"
+            aria-checked={accountType === opt.key}
+            className={[
+              "flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
+              accountType === opt.key
+                ? "bg-forest-600 text-white shadow-soft"
+                : "text-stone-700 hover:bg-white",
+            ].join(" ")}
+          >
+            <opt.Icon
+              className={[
+                "h-4 w-4 shrink-0",
+                accountType === opt.key ? "text-white" : "text-stone-500",
+              ].join(" ")}
+              strokeWidth={1.75}
+              aria-hidden
+            />
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      <FormField
+        label={t("emailLabel")}
+        htmlFor="signup-email"
+        helper={t("emailHelper")}
+        required
+      >
+        <Input
+          id="signup-email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          placeholder="vous@exemple.fr"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          invalid={Boolean(error)}
+        />
+      </FormField>
+
+      {error && (
+        <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700" role="alert">
+          {error}
+        </p>
+      )}
+
+      <Button type="submit" loading={pending} fullWidth size="lg">
+        {pending ? t("submitting") : t("submit")}
+      </Button>
+
+      <p className="text-center text-xs leading-relaxed text-forest-900/55">
+        {t.rich("legalNotice", {
+          cgu: chunks => (
+            <a href={`/${locale}/legal/cgu`} className="font-semibold text-forest-700 hover:underline">
+              {chunks}
+            </a>
+          ),
+          privacy: chunks => (
+            <a href={`/${locale}/legal/privacy`} className="font-semibold text-forest-700 hover:underline">
+              {chunks}
+            </a>
+          ),
+        })}
+      </p>
+    </form>
+  );
+}

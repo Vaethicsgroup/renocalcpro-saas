@@ -1,0 +1,184 @@
+/* globals.css — Réno·Calc Pro Premium Design System v3.0 (Sprint v2.4)
+ * Tokens HSL alignés sur la DA validée : Forest Green + Cream + Warm Naturals.
+ * Importé une seule fois depuis app/[locale]/layout.tsx.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* === LIGHT MODE (par défaut, ADN validé) === */
+
+    /* Fond principal : cream très pâle chaleureux */
+    --background: 45 56% 96%;            /* cream-100 #faf6ec */
+    --foreground: 156 35% 12%;           /* forest-900 dark text */
+
+    --card: 0 0% 100%;                   /* white pur pour cartes contraste */
+    --card-foreground: 156 35% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 156 35% 12%;
+
+    /* PRIMARY = Forest 700 (#2d5a3e) — CTA, headers pro/admin, sidebar foncée */
+    --primary: 146 33% 26%;
+    --primary-foreground: 45 56% 96%;    /* cream texte sur fond forest */
+
+    /* SECONDARY = cream-200 pour blocs doux, hovers neutres */
+    --secondary: 45 50% 92%;
+    --secondary-foreground: 156 35% 18%;
+
+    --muted: 45 40% 94%;
+    --muted-foreground: 156 12% 38%;
+
+    /* ACCENT = Forest 800 (#1f4d2e) pour titres marqués / accents profonds */
+    --accent: 146 42% 21%;
+    --accent-foreground: 45 56% 96%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 45 30% 86%;                /* cream-300 doux */
+    --input: 45 25% 80%;
+    --ring: 146 33% 26%;                 /* forest-700 */
+
+    --radius: 0.75rem;                   /* 12px (rounded-lg) par défaut */
+
+    /* === FONTS === */
+    --font-serif: "Source Serif 4", Georgia, serif;
+    --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+  }
+
+  .dark {
+    /* === DARK MODE (préparé, pas activé en MVP) === */
+    --background: 156 35% 6%;
+    --foreground: 45 56% 95%;
+
+    --card: 156 30% 9%;
+    --card-foreground: 45 56% 95%;
+
+    --popover: 156 30% 9%;
+    --popover-foreground: 45 56% 95%;
+
+    --primary: 146 33% 40%;              /* forest plus clair en dark */
+    --primary-foreground: 156 35% 6%;
+
+    --secondary: 156 20% 18%;
+    --secondary-foreground: 45 40% 90%;
+
+    --muted: 156 15% 16%;
+    --muted-foreground: 45 15% 60%;
+
+    --accent: 146 33% 26%;
+    --accent-foreground: 45 56% 95%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 156 18% 22%;
+    --input: 156 18% 25%;
+    --ring: 146 33% 45%;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  /* Titres avec serif éditorial premium */
+  h1, h2, h3, .font-serif-headline {
+    font-family: var(--font-serif);
+    letter-spacing: -0.015em;
+    color: hsl(156 42% 14%);
+  }
+
+  /* Focus visible cohérent (vert forêt) */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.2);
+    color: hsl(var(--primary));
+  }
+}
+
+@layer components {
+  /* Container marketing */
+  .container-marketing {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    max-width: 80rem; /* 1280px */
+  }
+
+  /* Hover lift subtil cards */
+  .card-hover-lift {
+    transition: transform 200ms ease-out, box-shadow 200ms ease-out;
+  }
+  .card-hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(31, 77, 46, 0.08), 0 2px 4px rgba(31, 77, 46, 0.04);
+  }
+
+  /* Sidebar item base (utilisé par sidebars dark forest et light cream) */
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 150ms ease-out, color 150ms ease-out;
+  }
+
+  /* Section cream alternée */
+  .section-cream {
+    background-color: hsl(45 56% 97%);
+  }
+
+  /* Bouton CTA primaire — vert forêt arrondi */
+  .btn-primary {
+    background-color: hsl(146 33% 26%);
+    color: hsl(45 56% 96%);
+    padding: 0.625rem 1.25rem;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: background-color 150ms ease-out;
+  }
+  .btn-primary:hover {
+    background-color: hsl(146 42% 21%);
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

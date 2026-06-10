@@ -1,0 +1,119 @@
+{
+  "info": {
+    "name": "Réno·Calc Pro API v1",
+    "description": "Collection Postman pour l'API REST publique. Renseignez la variable {{api_key}} (format `rnc_live_<prefix>.<secret>`) dans les variables de l'environnement.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "renocalcpro-api-v1"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{api_key}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://renocalcpro.fr/api/v1" },
+    { "key": "api_key", "value": "rnc_live_xxxxxxxx.xxxxxxxx" },
+    { "key": "project_id", "value": "" },
+    { "key": "report_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Account",
+      "item": [
+        {
+          "name": "GET /me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/me", "host": ["{{base_url}}"], "path": ["me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "GET /projects",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/projects?page=1&pageSize=20",
+              "host": ["{{base_url}}"],
+              "path": ["projects"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /projects",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maison Dupont\",\n  \"clientName\": \"Jean Dupont\",\n  \"address\": \"12 rue de la Paix, 75002 Paris\",\n  \"surfaceM2\": 95,\n  \"buildingType\": \"maison\",\n  \"constructionYear\": 1978\n}"
+            },
+            "url": { "raw": "{{base_url}}/projects", "host": ["{{base_url}}"], "path": ["projects"] }
+          }
+        },
+        {
+          "name": "GET /projects/:id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/projects/{{project_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["projects", "{{project_id}}"]
+            }
+          }
+        },
+        {
+          "name": "POST /projects/:id/reports",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"template\": \"AUDIT_PARTICULIER\",\n  \"mode\": \"complet\",\n  \"locale\": \"fr\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/projects/{{project_id}}/reports",
+              "host": ["{{base_url}}"],
+              "path": ["projects", "{{project_id}}", "reports"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "GET /reports/:id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/reports/{{report_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["reports", "{{report_id}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /reports/:id/pdf",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/reports/{{report_id}}/pdf",
+              "host": ["{{base_url}}"],
+              "path": ["reports", "{{report_id}}", "pdf"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

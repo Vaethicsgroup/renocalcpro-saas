@@ -1,0 +1,4 @@
+// sentry.server.config.ts — auto-init côté Node runtime.
+import { initSentry } from "@/lib/observability/sentry";
+
+initSentry();

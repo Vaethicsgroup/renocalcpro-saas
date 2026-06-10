@@ -1,0 +1,20 @@
+/* saas/public/fonts/fonts.css
+ * Polish v2.6 — Les .woff2 self-host ne sont pas commités en dev.
+ * On déclare uniquement les fallbacks système pour éviter les 404 réseau
+ * et garantir un rendu propre, sans dépendance à des assets manquants.
+ *
+ * En prod, ajouter les .woff2 dans /public/fonts/ et restaurer les @font-face.
+ * Importé via : @import url("/fonts/fonts.css");
+ */
+
+/* Aucun @font-face actif : le CSS global utilise les stacks suivantes
+ * définies dans tailwind.config (font-sans / font-serif) :
+ *   font-sans  : Inter, system-ui, -apple-system, "Segoe UI", Roboto, ...
+ *   font-serif : "Source Serif 4", Georgia, "Times New Roman", serif
+ *
+ * Ainsi :
+ *   - macOS récents : SF Pro / New York
+ *   - Windows       : Segoe UI / Georgia
+ *   - Linux         : DejaVu / Liberation
+ * Rendu correct partout, zéro requête réseau, zéro 404.
+ */

@@ -1,0 +1,153 @@
+// components/auth/AuthLayout.tsx — Layout split-screen v3.3 (i18n complet)
+// v3.3 :
+//  - Colonne gauche entièrement i18n via getTranslations("authPages.aside")
+//  - Plus aucun texte FR hardcodé
+//  - Mobile-first : aside cachée < lg, formulaire centré, padding réduit mobile
+
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { getTranslations } from "next-intl/server";
+import { MapPin } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
+
+interface Props {
+  locale: string;
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  /** Format "questionPart|linkPart" — ex: "Vous avez déjà un compte ?|Se connecter" */
+  altLink?: { label: string; href: string };
+}
+
+export async function AuthLayout({ locale, title, subtitle, children, altLink }: Props) {
+  const t = await getTranslations({ locale, namespace: "authPages" });
+
+  return (
+    <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
+      {/* Colonne gauche — illustration & manifeste (cachée mobile) */}
+      <aside
+        className="relative hidden flex-col justify-between overflow-hidden bg-night-gradient p-12 text-cream-50 lg:flex"
+        aria-hidden="false"
+      >
+        <Logo href={`/${locale}`} variant="wordmark" theme="light" withTagline />
+
+        <div className="relative max-w-md">
+          <p className="text-xs font-semibold uppercase tracking-wider text-cream-100/90">
+            {t("aside.eyebrow")}
+          </p>
+          <h2
+            className="mt-3 font-serif text-4xl font-bold leading-tight tracking-tight text-cream-50"
+            style={{ fontFamily: "'Source Serif 4', Georgia, serif" }}
+          >
+            {t("aside.headline")}
+          </h2>
+          <p className="mt-4 text-sm leading-relaxed text-cream-100/85">
+            {t("aside.body")}
+          </p>
+
+          <dl className="mt-8 grid grid-cols-3 gap-4 border-t border-cream-100/15 pt-6">
+            {/* Stats sobres — la cellule "hébergement France" utilise une icône
+                Lucide MapPin au lieu d'un drapeau emoji (DA Energy Trust). */}
+            <div>
+              <dt className="font-serif text-xl font-bold text-cream-50">
+                {t("aside.statProjectsValue")}
+              </dt>
+              <dd className="mt-0.5 text-xs text-cream-100/65">
+                {t("aside.statProjectsLabel")}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-serif text-xl font-bold text-cream-50">
+                {t("aside.statExpertsValue")}
+              </dt>
+              <dd className="mt-0.5 text-xs text-cream-100/65">
+                {t("aside.statExpertsLabel")}
+              </dd>
+            </div>
+            <div>
+              <dt className="flex h-7 items-center font-serif text-xl font-bold text-cream-50">
+                <MapPin
+                  className="h-5 w-5 text-forest-400"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+              </dt>
+              <dd className="mt-0.5 text-xs text-cream-100/65">
+                {t("aside.statHostingLabel")}
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <p className="text-xs text-cream-100/55">
+          {t("aside.footer")}
+        </p>
+
+        <svg
+          aria-hidden
+          viewBox="0 0 400 400"
+          className="pointer-events-none absolute -right-20 top-1/3 h-80 w-80 opacity-10"
+        >
+          <circle cx="200" cy="200" r="180" fill="none" stroke="currentColor" strokeWidth="1" />
+          <circle cx="200" cy="200" r="120" fill="none" stroke="currentColor" strokeWidth="1" />
+          <circle cx="200" cy="200" r="60" fill="none" stroke="currentColor" strokeWidth="1" />
+        </svg>
+
+        <svg
+          aria-hidden
+          viewBox="0 0 200 200"
+          className="pointer-events-none absolute -left-10 bottom-0 h-56 w-56 text-cream-50 opacity-10"
+        >
+          <path d="M50 150 Q60 80 100 60 Q140 80 150 150 Z" fill="currentColor" opacity="0.5" />
+          <path d="M70 150 Q80 100 100 90 Q120 100 130 150 Z" fill="currentColor" opacity="0.7" />
+        </svg>
+      </aside>
+
+      {/* Colonne droite — formulaire */}
+      <main className="flex flex-col items-center justify-center bg-cream-50 px-5 py-10 sm:px-6 sm:py-12">
+        <div className="mb-6 lg:hidden">
+          <Logo href={`/${locale}`} variant="wordmark" theme="dark" />
+        </div>
+
+        <div className="w-full max-w-md">
+          <header className="mb-7 sm:mb-8">
+            <h1
+              className="font-serif text-2xl font-bold tracking-tight text-forest-900 sm:text-3xl md:text-4xl"
+              style={{ fontFamily: "'Source Serif 4', Georgia, serif" }}
+            >
+              {title}
+            </h1>
+            {subtitle && (
+              <p className="mt-2 text-sm leading-relaxed text-forest-900/65">{subtitle}</p>
+            )}
+          </header>
+
+          {children}
+
+          {altLink && (
+            <p className="mt-8 text-center text-sm text-forest-900/70">
+              {altLink.label.split("|")[0]}
+              <Link
+                href={altLink.href}
+                className="ml-1 font-semibold text-forest-700 hover:text-forest-800 hover:underline"
+              >
+                {altLink.label.split("|")[1] ?? altLink.label}
+              </Link>
+            </p>
+          )}
+        </div>
+
+        <p className="mt-10 text-center text-xs text-forest-900/55 sm:mt-12">
+          © {new Date().getFullYear()} RENOCALCPRO ·{" "}
+          <Link href={`/${locale}/legal/privacy`} className="hover:text-forest-700 hover:underline">
+            {t("footer.privacy")}
+          </Link>
+          {" · "}
+          <Link href={`/${locale}/legal/cgu`} className="hover:text-forest-700 hover:underline">
+            {t("footer.cgu")}
+          </Link>
+        </p>
+      </main>
+    </div>
+  );
+}

@@ -1,0 +1,111 @@
+# ─── Réno·Calc Pro SaaS — Stack production ─────────────────────────────────
+# Lance : Caddy (reverse proxy + TLS auto), Next.js (web), Postgres,
+# Redis (queue + cache), ClamAV (antivirus pour photos uploadées).
+#
+# Usage :
+#   docker compose -f deploy/docker-compose.prod.yml --env-file .env.production up -d
+#
+# Backups :
+#   ./scripts/backup-prod.sh    (pg_dump + tar volume photos → OVH Object Storage)
+# Mises à jour :
+#   ./scripts/deploy.sh         (pull image + migrate + reload zero-downtime)
+
+name: renocal-prod
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: renocal-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+    networks: [renocal-net]
+
+  web:
+    image: renocal/saas:${APP_VERSION:-latest}
+    container_name: renocal-web
+    restart: unless-stopped
+    env_file: ../.env.production
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public&sslmode=disable
+      - REDIS_URL=redis://default:${REDIS_PASSWORD}@redis:6379
+      - CLAMAV_HOST=clamav
+      - CLAMAV_PORT=3310
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks: [renocal-net]
+
+  db:
+    image: postgres:16-alpine
+    container_name: renocal-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [renocal-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: renocal-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [renocal-net]
+
+  clamav:
+    image: clamav/clamav:1.4
+    container_name: renocal-clamav
+    restart: unless-stopped
+    volumes:
+      - clamav-data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    networks: [renocal-net]
+
+volumes:
+  caddy-data:
+  caddy-config:
+  db-data:
+  redis-data:
+  clamav-data:
+
+networks:
+  renocal-net:
+    driver: bridge

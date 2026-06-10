@@ -1,0 +1,137 @@
+// app/[locale]/onboarding/individual/page.tsx — Onboarding particulier 4 étapes
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { OnboardingStepper } from "@/components/onboarding/OnboardingStepper";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { FormField, Input, Select } from "@/components/ui/Input";
+
+const STEPS = [
+  { key: "welcome",  label: "Bienvenue" },
+  { key: "logement", label: "Mon logement" },
+  { key: "objectif", label: "Mon objectif" },
+  { key: "ready",    label: "C'est parti !" },
+];
+
+export default function OnboardingIndividualPage() {
+  const router = useRouter();
+  const [step, setStep] = useState(0);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-cream-100 via-cream-50 to-forest-50 px-4 py-12">
+      <div className="mx-auto max-w-2xl">
+        <header className="mb-8 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-forest-200 bg-white/70 px-3 py-1.5 text-2xs font-semibold uppercase tracking-wider text-forest-700">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-forest-500" />
+            Bienvenue chez RENOCALCPRO
+          </div>
+          <h1 className="mt-3 font-serif text-3xl font-bold text-forest-900 md:text-4xl" style={{ fontFamily: "Source Serif 4, Georgia, serif" }}>
+            Configurons votre espace en 4 étapes
+          </h1>
+        </header>
+
+        <div className="mb-8 flex justify-center">
+          <OnboardingStepper steps={STEPS} currentStep={step} />
+        </div>
+
+        {step === 0 && (
+          <Card variant="featured">
+            <CardHeader>
+              <CardTitle>Bienvenue ! 🎉</CardTitle>
+              <CardDescription>
+                Réno·Calc Pro va vous aider à diagnostiquer votre logement, comparer des scénarios chiffrés, et mobiliser toutes les aides accessibles.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3 text-sm">
+                <li className="flex items-start gap-2.5 text-sm text-forest-900/85"><span aria-hidden className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-forest-100 text-2xs font-bold text-forest-700">✓</span> Diagnostic guidé par notre assistant IA</li>
+                <li className="flex items-start gap-2.5 text-sm text-forest-900/85"><span aria-hidden className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-forest-100 text-2xs font-bold text-forest-700">✓</span> 3 scénarios travaux chiffrés automatiquement</li>
+                <li className="flex items-start gap-2.5 text-sm text-forest-900/85"><span aria-hidden className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-forest-100 text-2xs font-bold text-forest-700">✓</span> Calcul aides MaPrimeRénov' + CEE + Eco-PTZ</li>
+                <li className="flex items-start gap-2.5 text-sm text-forest-900/85"><span aria-hidden className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-forest-100 text-2xs font-bold text-forest-700">✓</span> Rapport PDF prêt à présenter à un artisan</li>
+              </ul>
+              <Button variant="primary" size="lg" fullWidth className="mt-6" onClick={() => setStep(1)}>Commencer →</Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 1 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Parlons de votre logement</CardTitle>
+              <CardDescription>Quelques infos basiques pour personnaliser votre diagnostic.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField label="Type de bien" htmlFor="type" required>
+                  <Select id="type"><option>Maison individuelle</option><option>Appartement</option><option>Immeuble entier</option></Select>
+                </FormField>
+                <FormField label="Année de construction" htmlFor="year">
+                  <Input id="year" type="number" placeholder="ex: 1972" />
+                </FormField>
+                <FormField label="Code postal" htmlFor="cp" required>
+                  <Input id="cp" placeholder="33000" />
+                </FormField>
+                <FormField label="Surface habitable (m²)" htmlFor="surf">
+                  <Input id="surf" type="number" placeholder="120" />
+                </FormField>
+              </div>
+              <div className="mt-6 flex justify-between">
+                <Button variant="ghost" size="md" onClick={() => setStep(0)}>← Retour</Button>
+                <Button variant="primary" size="md" onClick={() => setStep(2)}>Continuer →</Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 2 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Quel est votre objectif principal ?</CardTitle>
+              <CardDescription>Cela nous aide à proposer les scénarios les plus adaptés.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {[
+                  { value: "comfort",  label: "Améliorer mon confort hiver/été",     icon: "🌡" },
+                  { value: "savings",  label: "Réduire mes factures d'énergie",      icon: "💶" },
+                  { value: "label",    label: "Atteindre une étiquette DPE A ou B",  icon: "🏆" },
+                  { value: "ecology",  label: "Réduire mon impact carbone",          icon: "🌱" },
+                  { value: "rental",   label: "Préparer mon bien pour la location",  icon: "🔑" },
+                ].map(o => (
+                  <label key={o.value} className="flex cursor-pointer items-center gap-3 rounded-lg border border-stone-200 bg-white p-4 hover:border-teal-300">
+                    <input type="radio" name="objective" value={o.value} className="h-4 w-4 accent-teal-600" />
+                    <span aria-hidden className="text-2xl">{o.icon}</span>
+                    <span className="font-medium text-stone-900">{o.label}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="mt-6 flex justify-between">
+                <Button variant="ghost" size="md" onClick={() => setStep(1)}>← Retour</Button>
+                <Button variant="primary" size="md" onClick={() => setStep(3)}>Continuer →</Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 3 && (
+          <Card variant="featured">
+            <CardContent>
+              <div className="text-center">
+                <p className="text-5xl">🎉</p>
+                <h3 className="mt-4 font-serif text-2xl font-bold text-stone-900" style={{ fontFamily: "Source Serif 4, Georgia, serif" }}>Tout est prêt, Claire !</h3>
+                <p className="mt-2 text-sm text-stone-600">
+                  Votre espace est configuré. Vous pouvez maintenant lancer votre premier diagnostic.
+                </p>
+                <Button variant="primary" size="lg" fullWidth className="mt-6" onClick={() => router.push("/p/dashboard")}>
+                  Accéder à mon tableau de bord →
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}

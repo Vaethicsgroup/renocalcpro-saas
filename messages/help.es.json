@@ -1,0 +1,10 @@
+{
+  "help": {
+    "title": "Centro de ayuda", "subtitle": "Explore nuestros artículos o escriba su pregunta.",
+    "searchPlaceholder": "Buscar en la ayuda…",
+    "translationNotice": "Los artículos de ayuda están en francés. Traducción en curso.",
+    "categories": { "getting-started": "Primeros pasos", "calculator": "Calculadora", "reports": "Informes PDF", "subsidies": "Ayudas y financiación", "billing": "Facturación", "team": "Equipo", "api": "API e integraciones", "account": "Mi cuenta" },
+    "wasItHelpful": "¿Le ha resultado útil este artículo?", "yes": "Sí", "no": "No",
+    "thanks": "¡Gracias por sus comentarios!", "needMore": "¿Necesita más ayuda?", "contactSupport": "Contactar con soporte"
+  }
+}

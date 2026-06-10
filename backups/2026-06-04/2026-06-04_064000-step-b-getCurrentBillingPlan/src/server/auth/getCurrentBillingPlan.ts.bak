@@ -1,0 +1,34 @@
+// src/server/auth/getCurrentBillingPlan.ts
+// PLACEHOLDER SERVEUR — étape 2 MVP freemium.
+//
+// ⚠️ IMPORTANT : ce module n'est consommé QUE côté serveur (Server Component
+// / Server Action / route handler). Le plan billing ne doit JAMAIS être lu
+// depuis un signal client, ni inféré depuis l'URL, ni passé en query string.
+//
+// Statut actuel : retourne en dur "FREE" — c'est la valeur la plus restrictive
+// du catalogue billing (cf. `getPlanLimits` qui fallback déjà sur FREE en cas
+// de plan inconnu). Cela permet de brancher l'UI freemium dans une page
+// produit sans dépendre encore de NextAuth + Prisma.
+//
+// TODO étape ultérieure (étape ≥ 5) :
+//   1. lire la session NextAuth côté serveur,
+//   2. charger l'Organization rattachée,
+//   3. lire Subscription.plan,
+//   4. mapper via `billingPlanFromPrisma(...)` (déjà disponible dans plan-limits.ts).
+// Tant que (1)→(4) ne sont pas faits, on RESTE sur "FREE" : c'est honnête et
+// cohérent avec la posture « server-source-of-truth, fail-closed ».
+
+import type { BillingPlan } from "@/lib/billing/plan-limits";
+
+/**
+ * Retourne le plan billing courant du compte connecté.
+ *
+ * PLACEHOLDER : tant que NextAuth + Prisma ne sont pas branchés ici, on
+ * retourne déterministiquement "FREE". Ne JAMAIS faire confiance au client
+ * pour cette valeur — toujours consommer ce helper côté serveur.
+ */
+export async function getCurrentBillingPlan(): Promise<BillingPlan> {
+  // Placeholder serveur, jamais un signal client. À brancher sur NextAuth +
+  // Prisma plus tard (lecture Subscription.plan → billingPlanFromPrisma).
+  return "FREE";
+}

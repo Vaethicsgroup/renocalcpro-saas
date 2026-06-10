@@ -1,0 +1,1323 @@
+// schema.prisma — Réno·Calc Pro SaaS
+// Multi-tenant strict via `organizationId` sur chaque table métier.
+// Indices pensés pour les requêtes RLS + listings avec pagination.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  directUrl         = env("DATABASE_DIRECT_URL")
+  shadowDatabaseUrl = env("DATABASE_SHADOW_URL")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  ORGANISATION & UTILISATEURS
+// ────────────────────────────────────────────────────────────────────────────
+
+enum ClientType {
+  INDIVIDUAL
+  PRO_ARTISAN
+  PRO_DIAGNOSTICIAN
+  PRO_AUDITOR
+  PRO_BUREAU_ETUDES
+  PRO_AGENCY
+  PRO_SYNDIC
+  PRO_OTHER
+}
+
+enum OnboardingStep {
+  CLIENT_TYPE          // écran 1 — INDIVIDUAL vs PRO
+  PRO_SUB_SEGMENT      // écran 2 — sous-segmentation pro (skipped si INDIVIDUAL)
+  IDENTITY             // écran 3 — email + magic link
+  QUESTIONS            // écran 4 — questions adaptées
+  PLAN_SUGGESTION      // écran 5 — plan suggéré
+  COMPLETED
+}
+
+enum PrimaryGoal {
+  // Individuels
+  FIND_AIDS
+  PLAN_RENO
+  COMPARE_QUOTES
+  REDUCE_BILLS
+  SELL_BUY_HOUSE
+  // Pros
+  PRODUCE_AUDITS
+  PRODUCE_DPE
+  COMPLY_DECRET_TERTIAIRE
+  WIN_DEALS
+  ONBOARD_TEAM
+}
+
+enum SegmentSize {
+  SOLO              // 1 personne
+  XS                // 2-5
+  S                 // 6-15
+  M                 // 16-50
+  L                 // 51-200
+  XL                // 200+
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  legalName   String?
+  siret       String?
+  vatNumber   String?
+  brandColor  String?    // ex: "#115e59"
+  brandLogo   String?    // S3 key
+  rcpInsurer  String?
+  rcpContract String?
+  qualifs     String[]   @default([]) // OPQIBI 1905, RGE Audit, AFNOR DPE…
+
+  // Segmentation marketing & routing
+  clientType        ClientType        @default(INDIVIDUAL)
+  onboardingStep    OnboardingStep    @default(CLIENT_TYPE)
+  primaryGoal       PrimaryGoal?
+  segmentSize       SegmentSize?
+  monthlyVolume     Int?              // dossiers / mois prévu (pros)
+  defaultLocale     String            @default("fr")
+  signupSource      String?           // utm_source / referral / direct
+  utmCampaign       String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  members     Membership[]
+  projects    Project[]
+  subscriptions Subscription[]
+  auditLogs   AuditLog[]
+  featureOverrides OrganizationFeatureOverride[]
+  apiKeys     ApiKey[]
+  webhooks    Webhook[]
+  assistantConversations AssistantConversation[]
+  projectCalcSnapshots ProjectCalcSnapshot[]
+
+  /// Sprint 28 — désactivation assistant IA pour cette org (politique data interne)
+  assistantEnabled Boolean @default(true)
+
+  @@index([slug])
+  @@index([clientType])
+  @@index([onboardingStep])
+}
+
+model User {
+  id                String     @id @default(cuid())
+  email             String     @unique
+  emailVerifiedAt   DateTime?
+  passwordHash      String?    // bcrypt — null si OAuth-only
+  fullName          String?
+  avatarUrl         String?
+  totpSecret        String?    // chiffré application-side
+  totpEnabled       Boolean    @default(false)
+  locale            String     @default("fr")
+  lastLoginAt       DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  memberships       Membership[]
+  oauthAccounts     OAuthAccount[]
+  sessions          Session[]
+  uploadedPhotos    Photo[]    @relation("uploadedBy")
+  authoredReports   Report[]   @relation("authoredBy")
+
+  @@index([email])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  AUDITOR
+  VIEWER
+  CLIENT_PORTAL  // accès limité au dossier qui le concerne
+}
+
+model Membership {
+  id              String   @id @default(cuid())
+  userId          String
+  organizationId  String
+  role            Role
+  invitedAt       DateTime @default(now())
+  acceptedAt      DateTime?
+
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+model OAuthAccount {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String   // google | microsoft
+  providerAccountId String
+  refreshToken      String?  @db.Text
+  accessToken       String?  @db.Text
+  expiresAt         Int?
+  tokenType         String?
+  scope             String?
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id            String   @id @default(cuid())
+  userId        String
+  sessionToken  String   @unique
+  expires       DateTime
+  ipAddress     String?
+  userAgent     String?
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expires])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  PROJET DE RÉNOVATION
+// ────────────────────────────────────────────────────────────────────────────
+
+enum ProjectKind {
+  AUDIT_PARTICULIER
+  DPE_COLLECTIF
+  AUDIT_COPROPRIETE
+  AUDIT_TERTIAIRE
+}
+
+enum ProjectStatus {
+  DRAFT
+  IN_PROGRESS
+  REPORT_READY
+  DELIVERED
+  ARCHIVED
+}
+
+model Project {
+  id              String        @id @default(cuid())
+  organizationId  String
+  reference       String        // RNC-2026-0142
+  name            String
+  kind            ProjectKind
+  status          ProjectStatus @default(DRAFT)
+
+  clientName      String?
+  clientEmail     String?
+  clientPhone     String?
+  clientNotes     String?       @db.Text
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deliveredAt     DateTime?
+
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  building        Building?
+  scenarios       Scenario[]
+  photos          Photo[]
+  reports         Report[]
+  materialSelections ProjectMaterialSelection[]
+  calcSnapshots   ProjectCalcSnapshot[]
+
+  @@unique([organizationId, reference])
+  @@index([organizationId, status])
+  @@index([createdAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  BÂTIMENT — adresse, géolocalisation, données structurelles
+// ────────────────────────────────────────────────────────────────────────────
+
+enum GroundType {
+  VIDE_SANITAIRE
+  TERRE_PLEIN
+  CAVE
+  SOUS_SOL
+  LOCAL_NON_CHAUFFE
+  APPARTEMENT_SUR_CHAUFFE
+  AUTRE
+}
+
+enum FloorStructure {
+  DALLE_BETON
+  HOURDIS_POUTRELLES
+  BOIS_SOLIVAGE
+  MIXTE
+  AUTRE
+}
+
+model Building {
+  id              String   @id @default(cuid())
+  projectId       String   @unique
+
+  // Localisation
+  addressLine     String
+  city            String
+  postalCode      String
+  country         String   @default("FR")
+  latitude        Float?
+  longitude       Float?
+  altitudeM       Int?
+  climateZone     String?  // H1a, H1b, H1c, H2a, H2b, H2c, H2d, H3
+  djuBase18       Int?
+  contextUrban    String?  // dense | pavillonnaire | rural
+  facadeAzimuth   Int?     // 0=N, 90=E, 180=S, 270=O
+  facadeAzimuthConfidence String? // verified | auto | estimated | inferred | pending
+
+  // Bâti
+  yearBuilt       Int?
+  yearBuiltConfidence String?
+  surfaceM2       Float
+  ceilingHeightM  Float    @default(2.5)
+  occupants       Int      @default(1)
+  levels          Int      @default(1)
+  groundType      GroundType?
+  floorStructure  FloorStructure?
+  floorAccessible Boolean  @default(true)
+
+  // Copropriété (si applicable)
+  rncId           String?
+  syndicatName    String?
+  syndicName      String?
+  syndicCardNum   String?
+  nLogements      Int?
+  nLotsCommerce   Int?
+  tantiemesBase   Int?
+
+  // Tertiaire (si applicable)
+  nafCode         String?
+  decretCategory  String?
+  surfaceSubatM2  Float?
+  operatId        String?
+  referenceYearTertiary Int?
+
+  // Photos métadata aggrégées
+  facadePhotosCount Int   @default(0)
+
+  envelope        Envelope[]
+  systems         System[]
+  project         Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([city])
+  @@index([postalCode])
+  @@index([climateZone])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  ENVELOPPE — paroi par paroi
+// ────────────────────────────────────────────────────────────────────────────
+
+enum WallKind {
+  WALL
+  ROOF
+  FLOOR
+  WINDOW
+  DOOR
+}
+
+model Envelope {
+  id              String   @id @default(cuid())
+  buildingId      String
+  kind            WallKind
+  label           String
+  surfaceM2       Float
+  uBefore         Float
+  uAfter          Float?
+  composition     Json?    // détail des couches : layers[]={name, lambda, thicknessCm}
+  insulationMatId String?
+  insulationCm    Float?
+  facade          String?  // principale, arriere, gauche, droite, pignon
+  notes           String?  @db.Text
+
+  building        Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+
+  @@index([buildingId, kind])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  SYSTÈMES — chauffage, ECS, ventilation, ENR
+// ────────────────────────────────────────────────────────────────────────────
+
+enum SystemKind {
+  HEATING
+  ECS
+  VENTILATION
+  COOLING
+  PV
+  SOLAR_THERMAL
+  AUXILIARY
+}
+
+model System {
+  id              String     @id @default(cuid())
+  buildingId      String
+  kind            SystemKind
+  label           String
+  brand           String?
+  model           String?
+  yearInstalled   Int?
+  yearEol         Int?
+  conditionGrade  Int?       // 1=neuf, 5=HS
+  efficiency      Float?     // η, COP, SCOP
+  powerKw         Float?
+  storageL        Int?
+  fuel            String?    // elec, gaz, fioul, bois, reseau
+  hasRegulation   Boolean    @default(false)
+  notes           String?    @db.Text
+
+  building        Building   @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+
+  @@index([buildingId, kind])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  SCÉNARIOS, INTERVENTIONS, AIDES
+// ────────────────────────────────────────────────────────────────────────────
+
+enum ScenarioId {
+  ECO
+  STANDARD
+  PERFORMANT
+  MAXIMUM
+  CUSTOM
+}
+
+model Scenario {
+  id              String   @id @default(cuid())
+  projectId       String
+  scenarioKey     ScenarioId
+  name            String
+  tagline         String?
+  isRecommended   Boolean  @default(false)
+
+  kwhBefore       Float
+  kwhAfter        Float
+  costTtc         Float
+  aidsTotal       Float
+  netCost         Float
+  paybackYears    Float?
+  npv25y          Float?
+  co2BeforeKg     Float?
+  co2AfterKg      Float?
+  dpeClassBefore  String?
+  dpeClassAfter   String?
+
+  interventions   Intervention[]
+  aids            Aid[]
+  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, scenarioKey])
+  @@index([projectId])
+}
+
+model Intervention {
+  id              String   @id @default(cuid())
+  scenarioId      String
+  lot             String
+  title           String
+  description     String?  @db.Text
+  performanceTarget String?  // R 4.4 / Uw 1.1 / SCOP 4.2
+  surfaceM2       Float?
+  qty             Float?
+  unit            String?  // m², ml, fft
+  unitPriceTtc    Float?
+  totalPriceTtc   Float
+  vatRate         Float    @default(0.055)
+  benefits        String?
+
+  scenario        Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioId])
+}
+
+enum AidKind {
+  MPR_PARCOURS_ACCOMPAGNE
+  MPR_PARCOURS_GESTE
+  MPR_COPRO
+  CEE
+  ECO_PTZ
+  EXONERATION_TFPB
+  AIDE_REGIONALE
+  AIDE_LOCALE
+  TVA_REDUITE
+  OTHER
+}
+
+model Aid {
+  id              String   @id @default(cuid())
+  scenarioId      String
+  kind            AidKind
+  label           String
+  amount          Float
+  conditions      String?  @db.Text
+  authority       String?
+  authorityContact String?
+  expiresAt       DateTime?
+
+  scenario        Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  PHOTOS
+// ────────────────────────────────────────────────────────────────────────────
+
+enum PhotoCategory {
+  FACADE_PRINCIPALE
+  FACADE_ARRIERE
+  FACADE_PIGNON
+  TOITURE
+  COMBLES
+  PLANCHER_BAS
+  VIDE_SANITAIRE
+  MENUISERIES
+  CHAUFFAGE
+  ECS
+  VMC
+  PANNEAUX_SOLAIRES
+  TABLEAU_ELECTRIQUE
+  PATHOLOGIE
+  DEFAUT
+  CONTRAINTE
+  AUTRE
+}
+
+model Photo {
+  id              String         @id @default(cuid())
+  projectId       String
+  uploadedById    String
+
+  category        PhotoCategory
+  facade          String?
+  workItemRefId   String?
+  paroiRefId      String?
+  systemRefId     String?
+
+  title           String
+  description     String?        @db.Text
+  importance      Int            @default(3)
+  showInReport    Boolean        @default(true)
+  reportSection   String?
+  displayOrder    Int            @default(0)
+  tags            String[]       @default([])
+
+  takenAt         DateTime?
+  uploadedAt      DateTime       @default(now())
+  gpsLat          Float?
+  gpsLon          Float?
+  cameraMake      String?
+  cameraModel     String?
+
+  // Storage S3
+  originalKey     String         // path S3
+  thumbKey        String?
+  mediumKey       String?
+  width           Int
+  height          Int
+  bytes           Int
+  mime            String
+  sha256          String         // empreinte du fichier — détection doublons & antivirus
+  scannedAt       DateTime?
+  cleanScan       Boolean?       // résultat ClamAV
+
+  // Analyse Claude (optionnelle)
+  aiAnalysisRaw   Json?
+  aiSuggestedCategory PhotoCategory?
+  aiConfidence    Float?
+  aiAnalyzedAt    DateTime?
+
+  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy      User           @relation("uploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([projectId, category])
+  @@index([projectId, displayOrder])
+  @@index([sha256])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  RAPPORTS
+// ────────────────────────────────────────────────────────────────────────────
+
+enum ReportLevel {
+  SYNTHESE
+  COMPLET
+  EXPERT
+}
+
+enum ReportStatus {
+  GENERATING
+  READY
+  FAILED
+  ARCHIVED
+}
+
+model Report {
+  id              String       @id @default(cuid())
+  projectId       String
+  authoredById    String
+  templateKind    ProjectKind
+  level           ReportLevel
+  language        String       @default("fr")
+
+  status          ReportStatus @default(GENERATING)
+  generatedAt     DateTime?
+  pdfKey          String?      // S3 key du PDF généré
+  pdfBytes        Int?
+  calcHash        String?      // SHA-256 court de l'état au moment de l'export
+  pages           Int?
+
+  watermark       String?
+  brandingSnapshot Json?       // copie immuable du branding au moment de l'export
+
+  createdAt       DateTime     @default(now())
+
+  project         Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authoredBy      User         @relation("authoredBy", fields: [authoredById], references: [id])
+
+  @@index([projectId, generatedAt])
+  @@index([calcHash])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  AUDIT LOG (immuable, signe HMAC)
+// ────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id              String       @id @default(cuid())
+  organizationId  String?
+  actorUserId     String?
+  actorIp         String?
+  actorUserAgent  String?
+  action          String       // PROJECT_CREATE, PHOTO_UPLOAD, REPORT_GENERATE, USER_INVITE, ROLE_CHANGE…
+  resourceType    String?
+  resourceId      String?
+  payloadJson     Json?
+  hmac            String       // signature HMAC-SHA256 de la ligne (intégrité append-only)
+  prevHmac        String?      // chaîne de Merkle simple — détection altération
+  createdAt       DateTime     @default(now())
+
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([resourceType, resourceId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  FACTURATION
+// ────────────────────────────────────────────────────────────────────────────
+
+enum SubscriptionPlan {
+  // Particuliers
+  P_DECOUVERTE
+  P_MON_PROJET
+  // Pros
+  TRIAL
+  SOLO
+  PRO
+  TEAM
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum BillingPeriod {
+  MONTHLY
+  ANNUAL
+}
+
+model Subscription {
+  id              String             @id @default(cuid())
+  organizationId  String             @unique
+  plan            SubscriptionPlan   @default(TRIAL)
+  status          SubscriptionStatus @default(TRIALING)
+  billingPeriod   BillingPeriod      @default(MONTHLY)
+  trialEndsAt     DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean        @default(false)
+
+  // Stripe
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  stripePriceId        String?
+  stripeProductId      String?
+
+  // Quotas — null = illimité
+  monthlyQuotaProjects Int?  @default(5)
+  monthlyQuotaReports  Int?  @default(20)
+  monthlyQuotaPhotos   Int?  @default(500)
+  monthlyQuotaAiTokens Int?  @default(50000)
+  seatsIncluded        Int   @default(1)
+
+  // Compteurs courants (réinitialisés au début de currentPeriodStart)
+  usageProjects     Int @default(0)
+  usageReports      Int @default(0)
+  usagePhotos       Int @default(0)
+  usageAiTokens     Int @default(0)
+  usageSeatsActive  Int @default(0)
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  FEATURE FLAGS — paywall + overrides organisations
+// ────────────────────────────────────────────────────────────────────────────
+
+enum FeatureFlag {
+  // Calculateur & rapports
+  CALC_BASIC
+  CALC_ADVANCED_SCENARIOS
+  PDF_TEMPLATE_PARTICULIER
+  PDF_TEMPLATE_DPE_COLLECTIF
+  PDF_TEMPLATE_COPROPRIETE
+  PDF_TEMPLATE_TERTIAIRE
+  PDF_BRAND_WHITELABEL
+  // IA
+  AI_PHOTO_ANALYSIS
+  AI_REPORT_DRAFTING
+  AI_AGENT_ORCHESTRATOR
+  // Collaboration & équipes
+  TEAM_MULTI_SEAT
+  CLIENT_PORTAL_PUBLIC_LINK
+  COMMENT_THREADS
+  // Conformité & API
+  AUDIT_LOG_EXPORT
+  WEBHOOKS
+  REST_API
+}
+
+model PlanFeature {
+  id          String           @id @default(cuid())
+  plan        SubscriptionPlan
+  feature     FeatureFlag
+  enabled     Boolean          @default(true)
+  hardLimit   Int?             // null = illimité
+
+  @@unique([plan, feature])
+  @@index([plan])
+  @@index([feature])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  STATUS PAGE — health checks & incidents publics
+// ────────────────────────────────────────────────────────────────────────────
+
+enum ComponentName {
+  WEB
+  DB
+  REDIS
+  STORAGE
+  EMAIL
+  AGENTS
+}
+
+enum ComponentStatus {
+  OPERATIONAL
+  DEGRADED
+  PARTIAL_OUTAGE
+  MAJOR_OUTAGE
+  MAINTENANCE
+}
+
+model HealthCheck {
+  id          String           @id @default(cuid())
+  component   ComponentName
+  status      ComponentStatus
+  latencyMs   Int?
+  detail      String?
+  checkedAt   DateTime         @default(now())
+
+  @@index([component, checkedAt])
+  @@index([checkedAt])
+}
+
+enum IncidentSeverity {
+  MINOR
+  MAJOR
+  CRITICAL
+}
+
+enum IncidentState {
+  INVESTIGATING
+  IDENTIFIED
+  MONITORING
+  RESOLVED
+}
+
+model Incident {
+  id          String            @id @default(cuid())
+  title       String
+  components  ComponentName[]
+  severity    IncidentSeverity
+  state       IncidentState     @default(INVESTIGATING)
+  startedAt   DateTime          @default(now())
+  resolvedAt  DateTime?
+  updates     IncidentUpdate[]
+
+  @@index([startedAt])
+  @@index([state])
+}
+
+model IncidentUpdate {
+  id          String        @id @default(cuid())
+  incidentId  String
+  state       IncidentState
+  message     String        @db.Text
+  postedAt    DateTime      @default(now())
+
+  incident    Incident      @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, postedAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  EMAIL MOCK LOG — table de log des emails envoyés en mode MOCK (dev/admin)
+//  pour permettre la requête / debug. En prod (Resend), pas peuplée.
+// ────────────────────────────────────────────────────────────────────────────
+
+model EmailMockLog {
+  id              String       @id @default(cuid())
+  toEmail         String
+  template        String
+  locale          String
+  subject         String
+  html            String       @db.Text
+  text            String       @db.Text
+  sentByUserId    String?
+  createdAt       DateTime     @default(now())
+
+  @@index([toEmail, createdAt])
+  @@index([template, createdAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  IMPERSONATION — admin → utilisateur (audit trail strict, expiration 1h)
+// ────────────────────────────────────────────────────────────────────────────
+
+model Impersonation {
+  id              String       @id @default(cuid())
+  adminUserId     String
+  targetUserId    String
+  reason          String       @db.Text
+  startedAt       DateTime     @default(now())
+  expiresAt       DateTime
+  endedAt         DateTime?
+  ipAddress       String?
+  userAgent       String?
+  /// HMAC du payload — empêche le tampering du cookie
+  tokenHash       String       @unique
+
+  @@index([adminUserId, startedAt])
+  @@index([targetUserId, startedAt])
+  @@index([expiresAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
+model OrganizationFeatureOverride {
+  id              String       @id @default(cuid())
+  organizationId  String
+  feature         FeatureFlag
+  enabled         Boolean
+  hardLimit       Int?
+  reason          String?      // "trial-extension", "enterprise-deal", "regression-fix"
+  expiresAt       DateTime?
+  createdAt       DateTime     @default(now())
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, feature])
+  @@index([organizationId])
+  @@index([feature])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  API KEYS — accès API publique pour intégrations (REST_API feature flag)
+//  La clé secrète n'est jamais stockée en clair, uniquement son hash bcrypt.
+//  Le préfixe (8 premiers caractères) est conservé pour identification rapide.
+// ────────────────────────────────────────────────────────────────────────────
+
+enum ApiScope {
+  BASIC      // 60 req/min, lecture seule
+  FULL       // 600 req/min, lecture + écriture
+}
+
+model ApiKey {
+  id              String       @id @default(cuid())
+  organizationId  String
+  createdByUserId String
+  /// Préfixe public (ex: "rnc_live_a1b2c3d4") — affiché dans le dashboard
+  prefix          String       @unique
+  /// Hash bcrypt de la clé secrète complète (jamais stockée en clair)
+  secretHash      String
+  name            String       // ex: "Production server", "Zapier integration"
+  scope           ApiScope     @default(BASIC)
+  /// Origines autorisées (CORS / Referer) — vide = toutes
+  allowedOrigins  String[]     @default([])
+  lastUsedAt      DateTime?
+  lastUsedIp      String?
+  revokedAt       DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime     @default(now())
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, revokedAt])
+  @@index([prefix])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  WEBHOOKS — notifications sortantes signées HMAC-SHA256
+//  Le secret n'est généré qu'une fois (renvoyé à la création), jamais affiché ensuite.
+//  Chaque livraison est tracée dans WebhookDelivery (audit + retry).
+// ────────────────────────────────────────────────────────────────────────────
+
+enum WebhookEvent {
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_ARCHIVED
+  REPORT_QUEUED
+  REPORT_READY
+  REPORT_FAILED
+  PAYMENT_SUCCEEDED
+  PAYMENT_FAILED
+  SUBSCRIPTION_UPDATED
+  MATERIAL_IDENTIFIED
+  CATALOG_OVERRIDE_ACTIVATED
+  CATALOG_OVERRIDE_DEACTIVATED
+  ASSISTANT_FEEDBACK_RECEIVED
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  IN_FLIGHT
+  DELIVERED
+  RETRYING
+  FAILED
+  CANCELLED
+}
+
+model Webhook {
+  id              String         @id @default(cuid())
+  organizationId  String
+  createdByUserId String
+  name            String
+  url             String
+  /// Secret partagé pour signer les payloads (jamais réaffiché après création)
+  secret          String
+  events          WebhookEvent[]
+  active          Boolean        @default(true)
+  /// Si > 30 échecs consécutifs : auto-disable et notification org admin
+  consecutiveFailures Int        @default(0)
+  disabledAt      DateTime?
+  disabledReason  String?
+  lastSuccessAt   DateTime?
+  lastFailureAt   DateTime?
+  createdAt       DateTime       @default(now())
+
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries      WebhookDelivery[]
+
+  @@index([organizationId, active])
+  @@index([active, disabledAt])
+}
+
+model WebhookDelivery {
+  id              String                @id @default(cuid())
+  webhookId       String
+  event           WebhookEvent
+  /// Payload JSON brut envoyé (utile pour replay)
+  payload         String                @db.Text
+  status          WebhookDeliveryStatus @default(PENDING)
+  attemptCount    Int                   @default(0)
+  /// Prochaine tentative (NULL pour DELIVERED/CANCELLED/FAILED définitif)
+  nextAttemptAt   DateTime?
+  lastResponseStatus Int?
+  lastResponseBody String?              @db.Text
+  lastError       String?               @db.Text
+  durationMs      Int?
+  signature       String                // hex HMAC-SHA256 envoyé dans X-Renocal-Signature
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  webhook         Webhook               @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@index([event, createdAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  PROJECT MATERIAL SELECTION — sélections matériau du bâti initial
+//  Persistance optionnelle des choix utilisateur depuis MaterialPicker.
+//  Multi-tenant via le projet (organizationId hérité).
+// ────────────────────────────────────────────────────────────────────────────
+
+enum MaterialSelectionSource {
+  UI            // sélection manuelle dans MaterialPicker
+  PHOTO         // suggestion IA acceptée
+  API           // import via API REST v1
+  IMPORT        // import en lot (CSV)
+}
+
+enum MaterialSelectionConfidence {
+  OBSERVED
+  ESTIMATED
+  SUPPOSED
+  UNKNOWN
+}
+
+model ProjectMaterialSelection {
+  id              String                       @id @default(cuid())
+  projectId       String
+  /// Référence l'id stable du matériau dans la bibliothèque @renocal/core (ex: "wall-cut-stone")
+  materialId      String
+  category        String                       // wall, floor_low, floor_high, opening, finish
+  confidence      MaterialSelectionConfidence  @default(SUPPOSED)
+  source          MaterialSelectionSource      @default(UI)
+  addedByUserId   String
+  /// Note libre auditeur sur cette sélection
+  note            String?                      @db.Text
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+
+  project         Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@index([materialId])
+  @@index([source])
+  @@index([category])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  CATALOG OVERRIDES — édition admin des catalogues métier hors-code.
+//  Permet d'ajuster lambda, prix, etc. sans rebuild du package @renocal/core.
+//  Validation Zod côté server actions ; audit log obligatoire.
+// ────────────────────────────────────────────────────────────────────────────
+
+enum CatalogOverrideKind {
+  MATERIAL
+  SYSTEM
+}
+
+model CatalogOverride {
+  id              String              @id @default(cuid())
+  kind            CatalogOverrideKind
+  /// Id de l'entrée surchargée dans @renocal/core (ex: "wall-cut-stone", "heating-heat-pump-air-water")
+  entryId         String
+  /// Patch JSON appliqué par-dessus l'entrée canonique (lambda, prix, écobilan, sources...)
+  patch           Json
+  /// true = override actif, false = désactivé (kept for audit)
+  enabled         Boolean             @default(true)
+  reason          String              @db.Text
+  createdByUserId String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  history         CatalogOverrideHistory[]
+
+  @@unique([kind, entryId])
+  @@index([kind, enabled])
+}
+
+model CatalogOverrideHistory {
+  id                String          @id @default(cuid())
+  overrideId        String
+  /// Snapshot du patch AVANT modification (pour diff visuel et rollback)
+  previousPatch     Json
+  newPatch          Json
+  changedByUserId   String
+  changeReason      String          @db.Text
+  createdAt         DateTime        @default(now())
+
+  override          CatalogOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
+
+  @@index([overrideId, createdAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  BETA PROGRAM — candidatures et acceptation au programme beta tester
+// ────────────────────────────────────────────────────────────────────────────
+
+enum BetaApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum BetaSegment {
+  AUDITEUR
+  DIAGNOSTIQUEUR
+  SYNDIC
+  COPROPRIETAIRE
+  PARTICULIER
+  AUTRE
+}
+
+model BetaApplication {
+  id              String                @id @default(cuid())
+  email           String                @unique
+  fullName        String
+  segment         BetaSegment
+  expectations    String                @db.Text
+  /// URL photo profil (optionnel, S3)
+  profilePhotoUrl String?
+  status          BetaApplicationStatus @default(PENDING)
+  /// Notes internes admin (visible /admin/beta uniquement)
+  adminNotes      String?               @db.Text
+  /// User créé après acceptation (NULL tant que pas accepté)
+  createdUserId   String?
+  acceptedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectedReason  String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([status, createdAt])
+  @@index([segment])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  STATUS PAGE — abonnement email aux notifications d'incidents
+// ────────────────────────────────────────────────────────────────────────────
+
+model StatusSubscriber {
+  id              String         @id @default(cuid())
+  email           String         @unique
+  locale          String         @default("fr")
+  /// Composants à monitorer (vide = tous)
+  components      String[]       @default([])
+  /// Token de désabonnement (envoyé dans chaque email)
+  unsubscribeToken String        @unique
+  confirmedAt     DateTime?
+  unsubscribedAt  DateTime?
+  createdAt       DateTime       @default(now())
+
+  @@index([email])
+  @@index([confirmedAt, unsubscribedAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  AB TEST EVENTS — analytics conversion par variant
+//  Persiste les assignations (visit) ET les conversions (CTA click, signup, etc.)
+// ────────────────────────────────────────────────────────────────────────────
+
+enum AbTestEventKind {
+  ASSIGNMENT     // user vu une variante
+  CONVERSION     // user a converti (CTA click, signup, pricing view, etc.)
+}
+
+model AbTestEvent {
+  id              String          @id @default(cuid())
+  /// Test name (ex: "landing_hero_auditeurs")
+  testName        String
+  /// Variante assignée à l'utilisateur (A, B, C...)
+  variant         String
+  kind            AbTestEventKind
+  /// Type de conversion (CTA name, "signup", "pricing_view"...)
+  conversionType  String?
+  /// Pseudo-id anonyme (cookie hash, pas de PII)
+  visitorHash     String
+  /// Source du trafic (UTM)
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String?
+  /// Locale au moment de l'event
+  locale          String?
+  createdAt       DateTime        @default(now())
+
+  @@index([testName, variant, kind, createdAt])
+  @@index([visitorHash, testName])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  ASSISTANT IA MÉTIER — guidage diagnostic, aide remplissage, aide au choix
+// ────────────────────────────────────────────────────────────────────────────
+// Ce n'est PAS un chatbot support produit : c'est un assistant métier qui
+// accompagne l'utilisateur sur chaque section/champ du diagnostic. Le contenu
+// est stocké pour qualité produit (feedback, amélioration prompts), pas pour
+// surveiller les utilisateurs. PII anonymisées par lib/ai/assistant/sanitizer.
+// Rétention : 90 jours par défaut, purge cron (GDPR principle of minimisation).
+
+enum AssistantContextType {
+  FORM_FIELD          // aide sur un champ précis du formulaire diagnostic
+  FORM_SECTION        // aide sur une section entière (enveloppe, systèmes…)
+  CHOICE_HELP         // aide au choix entre plusieurs options
+  RESULT_EXPLAIN      // aide à comprendre un résultat / scénario
+  AID_EXPLAIN         // aide à comprendre une aide financière proposée
+  MATERIAL_RECOGNIZE  // aide à reconnaître un matériau du bâti
+  SYSTEM_RECOGNIZE    // aide à reconnaître un système existant
+  GENERAL             // question générale métier
+}
+
+enum AssistantPersona {
+  INDIVIDUAL          // particulier — langage simple, rassurant
+  PRO_AUDITEUR        // auditeur OPQIBI — langage technique dense
+  PRO_DIAGNOSTIQUEUR  // diagnostiqueur DPE — précis, normatif
+  PRO_ARTISAN         // artisan / RGE — orienté faisabilité chantier
+  PRO_BE              // bureau d'études — calculs et hypothèses
+  PRO_ACCOMPAGNATEUR  // Mon Accompagnateur Rénov' — pédagogique projet
+  PRO_AGENCY          // agence immobilière — orienté conseil vente/location
+}
+
+enum AssistantMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM_NOTE         // note interne (changement de contexte, garde-fou déclenché)
+}
+
+enum AssistantConfidence {
+  CERTAIN             // factuel, vérifié, normatif
+  ESTIMATED           // estimation pédagogique étayée
+  UNCERTAIN           // hypothèse à confirmer humainement
+  UNKNOWN             // refus poli — orientation vers expertise
+}
+
+model AssistantConversation {
+  id              String                 @id @default(cuid())
+  organizationId  String
+  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId          String?
+  /// Projet rattaché si la conversation porte sur un dossier précis
+  projectId       String?
+  /// Soft delete RGPD art. 17 — purge cron J+30 supprime physiquement
+  deletedAt       DateTime?
+  /// Initiateur de la suppression (user_request, admin, cron_retention)
+  deletedReason   String?
+  /// Persona déduit ou choisi explicitement par l'utilisateur
+  persona         AssistantPersona       @default(INDIVIDUAL)
+  /// Contexte dominant ouvert au démarrage (peut évoluer en cours)
+  contextType     AssistantContextType   @default(GENERAL)
+  /// Référence libre du champ/section ouvert (ex "envelope.walls.materialKey")
+  contextRef      String?
+  locale          String                 @default("fr")
+  /// Version de prompt utilisée (pour A/B + traçabilité régression)
+  promptVersion   String                 @default("v1.2026-05")
+  /// Tokens cumulés (input + output) — pour cap par org et facturation
+  tokensIn        Int                    @default(0)
+  tokensOut       Int                    @default(0)
+  /// Conversation explicitement terminée par l'utilisateur (clic "fermer")
+  closedAt        DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  messages        AssistantMessage[]
+  feedback        AssistantFeedback[]
+
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+  @@index([projectId, contextType])
+}
+
+model AssistantMessage {
+  id              String                 @id @default(cuid())
+  conversationId  String
+  conversation    AssistantConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role            AssistantMessageRole
+  /// Texte assaini (PII retirées avant stockage)
+  content         String                 @db.Text
+  /// Niveau de confiance affiché à l'utilisateur (assistant uniquement)
+  confidence      AssistantConfidence?
+  /// Sources internes citées : article help, fiche matériau, fiche système
+  sources         Json?                  // [{ kind, ref, label }]
+  /// Garde-fous déclenchés (ex "expert_review_suggested", "material_unknown")
+  guardsTriggered String[]
+  tokensUsed      Int                    @default(0)
+  createdAt       DateTime               @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model AssistantFeedback {
+  id              String                 @id @default(cuid())
+  conversationId  String
+  conversation    AssistantConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  /// Référence au message ASSISTANT visé par le feedback
+  messageId       String?
+  /// true = utile, false = pas utile, null = neutre (ex juste un commentaire)
+  helpful         Boolean?
+  /// Catégorie de problème si helpful=false (incorrect, hors-sujet, trop technique…)
+  issueKind       String?
+  comment         String?                @db.Text
+  createdAt       DateTime               @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([helpful, createdAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  CALC ENGINE — Snapshots de résultat (Sprint v3.0 — persistance moteur)
+//  Un snapshot = un calcul complet du moteur (inputs + baseline + scénarios
+//  + aides + warnings). Conservé sous forme de payload JSON immutable +
+//  colonnes indexées extraites pour listing rapide. Idempotent et auditable
+//  via engineVersion/parametersVersion.
+// ────────────────────────────────────────────────────────────────────────────
+
+model ProjectCalcSnapshot {
+  id                    String   @id @default(cuid())
+
+  // Multi-tenant strict
+  organizationId        String
+  projectId             String
+
+  // Versioning moteur — permet de re-jouer / comparer d'anciens calculs
+  engineVersion         String   // ex. "1.0.0"
+  parametersVersion     String   // ex. "1.0.0"
+
+  // Inputs sérialisés (BuildingInputs + Household + Scenario[])
+  buildingInputs        Json
+  householdInputs       Json?
+  scenarioInputs        Json     // tableau de Scenario
+
+  // Résultat baseline — colonnes extraites pour listings / filtres rapides
+  baselineUaWK          Float    // W/K
+  baselineCepKwhM2      Float    // kWh EP / m² / an
+  baselineGesKgM2       Float    // kgCO2 / m² / an
+  baselineDpeLabel      String   // "A" .. "G"
+  baselineGesLabel      String
+  baselineCostEur       Float    // € / an
+  baselineHeatingKwh    Float
+  baselineDhwKwh        Float
+
+  // Scénario recommandé
+  recommendedScenarioId String?
+  scenariosCount        Int      @default(0)
+  warningsCount         Int      @default(0)
+
+  // Résultat complet sérialisé (ProjectResult)
+  fullResult            Json
+
+  // Métadonnées
+  notes                 String?  @db.Text
+  computedAt            DateTime @default(now())
+  createdAt             DateTime @default(now())
+
+  // Relations
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project               Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, computedAt(sort: Desc)])
+  @@index([organizationId, computedAt(sort: Desc)])
+  @@index([organizationId, baselineDpeLabel])
+  @@index([engineVersion, parametersVersion])
+}

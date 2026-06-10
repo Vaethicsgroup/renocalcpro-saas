@@ -1,0 +1,27 @@
+// app/[locale]/p/layout.tsx — Layout Particulier v2.5 (sidebar cream + safe dev)
+import type { ReactNode } from "react";
+import { SidebarParticulier } from "@/components/layout/SidebarParticulier";
+
+// Force-dynamic : évite tout pre-rendering qui pourrait crash sur Prisma/auth en dev
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+interface Props {
+  children: ReactNode;
+  params: Promise<{ locale: string }>;
+}
+
+export default async function ParticulierLayout({ children, params }: Props) {
+  const { locale } = await params;
+  // v2.5 — Suppression des dépendances ImpersonationBanner/AssistantProvider au boot.
+  // Ces composants peuvent être ré-ajoutés page-par-page une fois NextAuth provisionné.
+
+  return (
+    <div className="flex min-h-screen bg-cream-100">
+      <SidebarParticulier locale={locale} />
+      <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
+        {children}
+      </main>
+    </div>
+  );
+}

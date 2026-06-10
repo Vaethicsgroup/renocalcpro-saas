@@ -1,0 +1,4 @@
+// sentry.client.config.ts — auto-init côté browser par @sentry/nextjs.
+import { initSentry } from "@/lib/observability/sentry";
+
+initSentry();

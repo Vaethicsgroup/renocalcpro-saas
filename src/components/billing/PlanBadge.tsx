@@ -1,0 +1,53 @@
+// src/components/billing/PlanBadge.tsx — étape E
+// Server Component (pas de "use client"). Petit badge FR pour le plan billing
+// courant. Couleur : ambre pour FREE, émeraude pour les plans payants.
+//
+// Pas de logique policy ici — c'est PURELY visuel. La page parente décide du
+// plan via getCurrentBillingPlan() (server-source-of-truth).
+//
+// Utilisable depuis n'importe quel Server ou Client Component.
+
+import type { JSX } from "react";
+import {
+  type BillingPlan,
+  getBillingPlanLabelFr,
+} from "@/lib/billing/plan-limits";
+
+export interface PlanBadgeProps {
+  plan: BillingPlan;
+  /** Variante d'affichage. `compact` = pill, `inline` = inline-flex sans pill. */
+  variant?: "compact" | "inline";
+  className?: string;
+}
+
+export function PlanBadge({
+  plan,
+  variant = "compact",
+  className,
+}: PlanBadgeProps): JSX.Element {
+  const label = getBillingPlanLabelFr(plan);
+  const isFree = plan === "FREE";
+
+  const base =
+    variant === "compact"
+      ? "inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-semibold uppercase tracking-wider"
+      : "inline-flex items-center text-xs font-semibold";
+
+  // FREE : pill cream sobre (gratuit, neutre premium)
+  // Paid : pill vert énergie léger (statut actif)
+  const color = isFree
+    ? "bg-cream-200 text-stone-700"
+    : "bg-forest-100 text-forest-800";
+
+  return (
+    <span
+      data-testid="plan-badge"
+      data-plan={plan}
+      className={[base, variant === "compact" ? color : "", className]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {label}
+    </span>
+  );
+}

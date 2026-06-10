@@ -1,0 +1,120 @@
+{
+  "legal": {
+    "nav": {
+      "heading": "Pages légales",
+      "ariaLabel": "Navigation des pages légales",
+      "warningTitle": "Modèles à valider juridiquement",
+      "warningBody": "Ces documents sont des modèles génériques fournis à titre indicatif. Ils ne constituent pas un avis juridique et doivent impérativement être relus, adaptés et validés par votre conseil juridique avant toute mise en ligne ou opposabilité.",
+      "items": {
+        "cgu": "CGU",
+        "cgv": "CGV",
+        "privacy": "Confidentialité (RGPD)",
+        "cookies": "Cookies",
+        "mentions": "Mentions légales"
+      }
+    },
+    "cgu": {
+      "title": "Conditions Générales d'Utilisation",
+      "lastUpdated": "Dernière mise à jour : 9 mai 2026",
+      "s1": {
+        "title": "1. Objet",
+        "body": "Les présentes Conditions Générales d'Utilisation (« CGU ») ont pour objet de définir les modalités et conditions d'accès et d'utilisation du service en ligne Réno·Calc Pro (ci-après « le Service »), édité par VA ETHICS GROUP, accessible à l'adresse https://renocalcpro.fr et applications mobiles associées.\n\nL'utilisation du Service implique l'acceptation pleine et entière des présentes CGU. Si l'Utilisateur n'accepte pas tout ou partie des CGU, il doit renoncer à l'usage du Service."
+      },
+      "s2": {
+        "title": "2. Accès au Service",
+        "body": "Le Service est accessible 7 jours sur 7, 24 heures sur 24, sauf cas de force majeure ou évènement hors du contrôle de Réno·Calc Pro et sous réserve des éventuelles pannes, opérations de maintenance et mises à jour nécessaires au bon fonctionnement du Service.\n\nL'Utilisateur reconnaît disposer de la compétence et des moyens nécessaires pour accéder et utiliser le Service. Il fait son affaire personnelle de la mise en place des moyens informatiques et de télécommunications permettant l'accès au Service.\n\nLes coûts de connexion à internet sont à la charge exclusive de l'Utilisateur."
+      },
+      "s3": {
+        "title": "3. Création et gestion de compte",
+        "body": "Pour bénéficier du Service, l'Utilisateur doit créer un compte en fournissant des informations exactes, à jour et complètes. L'Utilisateur s'engage à maintenir ces informations à jour.\n\nL'Utilisateur est seul responsable de la confidentialité de ses identifiants de connexion. Toute utilisation du Service via les identifiants de l'Utilisateur est réputée être faite par l'Utilisateur. Réno·Calc Pro ne saurait être tenu responsable de l'utilisation frauduleuse des identifiants par un tiers.\n\nL'Utilisateur peut à tout moment supprimer son compte depuis les paramètres de son espace personnel. La suppression entraîne l'effacement des données personnelles dans un délai de 30 jours, sous réserve des obligations légales de conservation."
+      },
+      "s4": {
+        "title": "4. Description du Service",
+        "body": "Le Service propose un calculateur d'audit énergétique conforme à la méthode 3CL-DPE 2021, des templates de rapports premium au format PDF, une bibliothèque de matériaux d'isolation, des scénarios de rénovation prédéfinis, une identification automatique des aides MaPrimeRénov' et CEE, et — selon le plan souscrit — des fonctionnalités d'équipe, marque blanche, API et agents IA.\n\nLes calculs proposés constituent un outil d'aide à la décision et NE remplacent EN AUCUN CAS un Diagnostic de Performance Énergétique (DPE) réglementaire, un audit énergétique réglementaire au sens de l'article L 731-1 du CCH, ou toute étude thermique RT/RE 2020 réalisée par un professionnel certifié."
+      },
+      "s5": {
+        "title": "5. Propriété intellectuelle",
+        "body": "Tous les éléments du Service (logiciels, structures, designs, illustrations, photographies, textes, marques, logos, sons, animations) sont la propriété exclusive de Réno·Calc Pro ou de ses partenaires.\n\nL'Utilisateur s'engage à ne pas reproduire, copier, vendre, revendre ou exploiter une partie quelconque du Service à des fins commerciales sans autorisation expresse écrite préalable de Réno·Calc Pro.\n\nLes contenus produits par l'Utilisateur via le Service (dossiers d'audit, photos, rapports PDF générés) restent la propriété de l'Utilisateur. L'Utilisateur concède à Réno·Calc Pro une licence non-exclusive d'usage strictement nécessaire à la fourniture du Service."
+      },
+      "s6": {
+        "title": "6. Obligations de l'Utilisateur",
+        "body": "L'Utilisateur s'engage à utiliser le Service conformément aux présentes CGU, aux lois et règlements en vigueur, à l'ordre public et aux bonnes mœurs.\n\nIl est interdit notamment de :\n- Utiliser le Service à des fins illégales, frauduleuses ou contraires aux droits des tiers ;\n- Tenter d'accéder sans autorisation aux systèmes informatiques de Réno·Calc Pro ou à des comptes d'autres utilisateurs ;\n- Charger ou diffuser des contenus illicites, diffamatoires, injurieux, racistes, xénophobes, pornographiques ou portant atteinte à la dignité humaine ;\n- Reproduire, copier, vendre, modifier ou exploiter à des fins commerciales sans autorisation tout élément du Service ;\n- Utiliser des automatismes (bots, scrapers) pour interagir avec le Service en dehors des API publiques officielles."
+      },
+      "s7": {
+        "title": "7. Responsabilité",
+        "body": "Réno·Calc Pro met tout en œuvre pour fournir un Service de qualité, mais ne saurait garantir une disponibilité de 100 %, l'absence totale de bugs, ou l'adéquation parfaite du Service à un usage particulier de l'Utilisateur.\n\nLes calculs et estimations fournis par le Service sont des aides à la décision, basées sur les données saisies par l'Utilisateur. Réno·Calc Pro ne saurait être tenu responsable des conséquences de l'utilisation de ces estimations dans des décisions de travaux, de financement ou de conformité réglementaire.\n\nEn cas de défaillance avérée du Service, la responsabilité de Réno·Calc Pro sera limitée au montant des sommes effectivement versées par l'Utilisateur au cours des 12 derniers mois."
+      },
+      "s8": {
+        "title": "8. Suspension et résiliation",
+        "body": "Réno·Calc Pro se réserve le droit de suspendre ou résilier le compte d'un Utilisateur en cas de manquement avéré aux présentes CGU, après notification préalable et délai raisonnable de mise en conformité (sauf manquement grave justifiant une suspension immédiate).\n\nL'Utilisateur peut à tout moment résilier son compte depuis l'espace personnel. La résiliation prend effet à la fin de la période de facturation en cours pour les abonnements payants."
+      },
+      "s9": {
+        "title": "9. Modification des CGU",
+        "body": "Réno·Calc Pro se réserve la possibilité de modifier les présentes CGU à tout moment. Les Utilisateurs seront notifiés des modifications substantielles par email au moins 30 jours avant leur entrée en vigueur. La poursuite de l'utilisation du Service après cette période vaudra acceptation des nouvelles CGU."
+      },
+      "s10": {
+        "title": "10. Droit applicable et juridiction compétente",
+        "body": "Les présentes CGU sont soumises au droit français. En cas de litige, et après tentative de résolution amiable, les tribunaux français seront seuls compétents.\n\nConformément à l'article L. 612-1 du Code de la consommation, l'Utilisateur consommateur peut recourir gratuitement à un médiateur de la consommation."
+      }
+    },
+    "cgv": {
+      "title": "Conditions Générales de Vente",
+      "lastUpdated": "Dernière mise à jour : 9 mai 2026",
+      "s1": { "title": "1. Objet", "body": "Les présentes Conditions Générales de Vente (« CGV ») régissent les abonnements payants au Service Réno·Calc Pro, édité par VA ETHICS GROUP." },
+      "s2": { "title": "2. Plans et tarifs", "body": "Les plans disponibles, leurs fonctionnalités et leurs tarifs sont décrits sur la page https://renocalcpro.fr/pricing. Les tarifs sont indiqués TTC, en euros. Réno·Calc Pro se réserve le droit de modifier ses tarifs à tout moment, les nouveaux tarifs ne s'appliquant qu'aux abonnements souscrits postérieurement à la modification." },
+      "s3": { "title": "3. Commande et paiement", "body": "Les abonnements sont souscrits en ligne via la plateforme Stripe (paiement sécurisé). Le paiement s'effectue par carte bancaire, prélèvement SEPA ou tout autre moyen proposé par Stripe.\n\nLes abonnements sont à durée mensuelle ou annuelle, à reconduction tacite. L'utilisateur peut résilier à tout moment depuis son espace personnel ; la résiliation prend effet à la fin de la période de facturation en cours, sans remboursement au prorata sauf défaillance avérée du Service." },
+      "s4": { "title": "4. Livraison du Service", "body": "L'accès au Service est ouvert immédiatement après validation du paiement. En cas de période d'essai, l'accès est ouvert dès la création du compte." },
+      "s5": { "title": "5. Droit de rétractation", "body": "Conformément à l'article L. 221-28 13° du Code de la consommation, le droit de rétractation ne s'applique pas aux contrats de fourniture d'un contenu numérique non fourni sur un support matériel dont l'exécution a commencé après accord préalable exprès de l'Utilisateur. L'Utilisateur reconnaît expressément renoncer à son droit de rétractation en activant le Service avant la fin du délai de 14 jours." },
+      "s6": { "title": "6. Garantie et SAV", "body": "Réno·Calc Pro s'engage à fournir un service de qualité conforme à la description faite sur sa page tarifaire. En cas de dysfonctionnement avéré et imputable à Réno·Calc Pro affectant significativement l'utilisation du Service, le délai de résolution est de 5 jours ouvrés à compter de la notification. Au-delà, l'Utilisateur peut demander un avoir au prorata du temps d'indisponibilité." },
+      "s7": { "title": "7. Suspension pour impayé", "body": "En cas d'échec de paiement, Réno·Calc Pro tente 3 nouvelles présentations sur 14 jours. À défaut de régularisation, le compte est suspendu. Au-delà de 30 jours, le compte peut être résilié de plein droit." },
+      "s8": { "title": "8. Médiation", "body": "Conformément à l'article L. 612-1 du Code de la consommation, l'Utilisateur consommateur peut recourir gratuitement au médiateur de la consommation désigné dans les Mentions légales." }
+    },
+    "privacy": {
+      "title": "Politique de confidentialité",
+      "lastUpdated": "Dernière mise à jour : 9 mai 2026 — conforme au RGPD (Règlement UE 2016/679)",
+      "s1": { "title": "1. Responsable du traitement", "body": "VA ETHICS GROUP, éditeur du Service Réno·Calc Pro. Contact : rgpd@renocalcpro.fr" },
+      "s2": { "title": "2. Délégué à la Protection des Données (DPO)", "body": "Si l'organisation dépasse 250 salariés ou traite régulièrement des données sensibles à grande échelle, un DPO sera désigné. À défaut, les demandes RGPD sont à adresser à rgpd@renocalcpro.fr." },
+      "s3": { "title": "3. Données collectées", "body": "- Données de compte : email, nom, mot de passe hashé (bcrypt), locale, sessions (IP, user-agent)\n- Données de dossier : adresse, surface, photos bâtiment, revenus (catégorie MaPrimeRénov')\n- Photos téléversées : images + métadonnées EXIF (GPS, date, appareil)\n- Données de paiement : email, derniers 4 chiffres CB, factures (via Stripe)\n- Données techniques : logs serveur, audit log immuable, métriques anonymes Plausible" },
+      "s4": { "title": "4. Finalités et bases légales", "body": "- Création et gestion de compte : exécution contrat (art. 6.1.b)\n- Production des audits énergétiques : exécution contrat\n- Paiements : exécution contrat + obligation comptable (art. 6.1.c)\n- Email transactionnel : intérêt légitime (art. 6.1.f)\n- Analyse IA des photos : consentement explicite (art. 6.1.a) et opt-in\n- Mesure d'audience anonyme : intérêt légitime (Plausible cookieless)\n- Audit log immuable : obligation légale + intérêt légitime sécurité" },
+      "s5": { "title": "5. Durée de conservation", "body": "- Compte actif : tant que l'utilisateur ne le supprime pas\n- Compte inactif : suppression automatique 3 ans après dernière connexion\n- Dossiers d'audit : 5 ans après livraison du rapport (obligation L 731-1 CCH)\n- Photos : 5 ans, suppression automatique 1 an après archivage du projet\n- Factures : 10 ans (obligation comptable)\n- Audit logs sécurité : 5 ans\n- Logs serveur opérationnels : 1 an" },
+      "s6": { "title": "6. Destinataires", "body": "- Hébergeur : OVH SAS (France) — DPA signé, certifié ISO 27001 / HDS\n- Email transactionnel : Resend GmbH (Allemagne) — DPA signé\n- Paiements : Stripe Payments Europe Ltd (Irlande) — PCI-DSS niveau 1\n- IA (opt-in) : Anthropic Ireland Ltd — DPA + clauses contractuelles types EU\n- Mesure d'audience : Plausible Insights OÜ (Estonie) — sans cookie, sans IP intégrale\n- Expert-comptable : transmission factures uniquement\n\nAucune transmission à des tiers à des fins publicitaires." },
+      "s7": { "title": "7. Transferts hors Union Européenne", "body": "Anthropic peut traiter les requêtes IA aux États-Unis. Cadre juridique : clauses contractuelles types Commission européenne 2021/914. Donnée minimisée (uniquement la photo opt-in). Possibilité d'auto-héberger un LLM local pour clients sensibles (option Sprint 7+)." },
+      "s8": { "title": "8. Vos droits", "body": "Vous disposez à tout moment des droits suivants, exercables via rgpd@renocalcpro.fr :\n- Droit d'accès (art. 15) : export JSON complet sous 30 j\n- Droit de rectification (art. 16) : self-service via dashboard\n- Droit à l'effacement / oubli (art. 17) : bouton self-service + purge 30 j\n- Droit à la portabilité (art. 20) : export ZIP photos + JSON dossiers + PDF rapports\n- Droit d'opposition (art. 21) : opt-out emails marketing self-service\n- Droit à la limitation du traitement (art. 18) : suspension du compte sur demande\n- Droit de réclamation auprès de la CNIL : https://www.cnil.fr/fr/plaintes" },
+      "s9": { "title": "9. Sécurité des données", "body": "- TLS 1.3 obligatoire (HSTS preload)\n- Stockage chiffré at-rest pour les photos (SSE-S3)\n- Backups quotidiens chiffrés GPG AES256, cross-region (RTO 4 h, RPO 24 h)\n- Audit log immuable signé HMAC-SHA256 (chaîne de Merkle)\n- Authentification par magic-link 15 min ou OAuth, TOTP optionnel\n- Tests pénétration annuels (à partir de 2026 Q4)\n- Formation sécurité annuelle de l'équipe" },
+      "s10": { "title": "10. Cookies", "body": "Voir la Politique de cookies dédiée. En résumé : aucun cookie publicitaire, aucun tracker tiers. Cookie de session NextAuth (essentiel) + cookie de langue. Plausible Analytics fonctionne sans cookie." },
+      "s11": { "title": "11. Notification des violations", "body": "En cas de violation de données présentant un risque élevé pour les personnes, Réno·Calc Pro notifiera la CNIL sous 72 heures (art. 33 RGPD) et informera directement les personnes concernées si nécessaire (art. 34 RGPD)." },
+      "s12": { "title": "12. Modifications de cette politique", "body": "Cette politique peut être mise à jour pour refléter des évolutions légales ou fonctionnelles. Les modifications substantielles seront notifiées par email aux utilisateurs concernés au moins 30 jours avant entrée en vigueur." }
+    },
+    "cookies": {
+      "title": "Politique de cookies",
+      "lastUpdated": "Dernière mise à jour : 9 mai 2026",
+      "s1": {
+        "title": "1. Approche minimaliste",
+        "body": "Réno·Calc Pro adopte une approche minimaliste en matière de cookies. Aucun cookie publicitaire, aucun cookie tiers à des fins de tracking, aucun pixel Facebook ni Google Analytics. Notre outil de mesure d'audience (Plausible Analytics) fonctionne sans cookie ni adresse IP intégrale."
+      },
+      "s2": {
+        "title": "2. Cookies strictement nécessaires (sans consentement)",
+        "body": "Les cookies suivants sont essentiels au fonctionnement du Service et ne nécessitent pas votre consentement préalable, conformément à l'exemption \"strictement nécessaire\" de la directive ePrivacy :"
+      },
+      "table": {
+        "title": "Liste des cookies utilisés",
+        "col1": "Nom",
+        "col2": "Finalité",
+        "col3": "Type",
+        "col4": "Durée",
+        "row1Purpose": "Authentification de session NextAuth",
+        "row1Type": "Essentiel",
+        "row2Purpose": "Protection contre attaques CSRF",
+        "row2Type": "Essentiel",
+        "row3Purpose": "Mémorisation de la langue choisie",
+        "row3Type": "Préférence",
+        "session": "Session",
+        "year": "an"
+      },
+      "s3": {
+        "title": "3. Vos choix",
+        "body": "Vous pouvez à tout moment configurer votre navigateur pour bloquer ou supprimer les cookies. Attention : bloquer les cookies essentiels rendra le Service inutilisable (impossibilité de se connecter). Pour gérer vos cookies :\n- Chrome : Réglages > Confidentialité et sécurité > Cookies\n- Firefox : Préférences > Vie privée et sécurité > Cookies\n- Safari : Préférences > Confidentialité"
+      }
+    }
+  }
+}

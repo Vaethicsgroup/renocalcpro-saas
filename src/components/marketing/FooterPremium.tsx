@@ -1,0 +1,207 @@
+// components/marketing/FooterPremium.tsx — Footer v3.2 (i18n + mobile-first)
+// v3.2 :
+//  - i18n via useTranslations("footer")
+//  - Mobile : colonnes en accordion <details> (compactes), Desktop : grille 4 colonnes
+//  - Lien "Guide démarrage" → /help/getting-started (page autonome créée)
+//  - Sélecteur de langue accessible + icônes sociales SVG (plus de texte cassé)
+"use client";
+
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { usePathname, useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
+
+interface Props { locale: string }
+
+const SUPPORTED_LOCALES = ["fr", "en", "es", "de", "pt"] as const;
+// Labels sobres (codes ISO sans drapeaux emoji — direction Energy Trust).
+const LANG_LABELS: Record<(typeof SUPPORTED_LOCALES)[number], string> = {
+  fr: "FR — Français",
+  en: "EN — English",
+  es: "ES — Español",
+  de: "DE — Deutsch",
+  pt: "PT — Português",
+};
+
+export function FooterPremium({ locale }: Props) {
+  const t = useTranslations("footer");
+  const pathname = usePathname();
+  const router = useRouter();
+
+  function switchLocale(next: string) {
+    if (next === locale) return;
+    const parts = pathname.split("/");
+    if (SUPPORTED_LOCALES.includes(parts[1] as (typeof SUPPORTED_LOCALES)[number])) {
+      parts[1] = next;
+    } else {
+      parts.splice(1, 0, next);
+    }
+    router.push(parts.join("/") || `/${next}`);
+  }
+
+  const COLUMNS = [
+    {
+      title: t("colProduct"),
+      links: [
+        { label: t("linkSolutions"),       href: "/solutions" },
+        { label: t("linkFeatures"),        href: "/fonctionnalites" },
+        { label: t("linkPricing"),         href: "/tarifs" },
+        { label: t("linkApi"),             href: "/api-docs/graphql" },
+        { label: t("linkStatus"),          href: "/status" },
+      ],
+    },
+    {
+      title: t("colResources"),
+      links: [
+        { label: t("linkHelpCenter"),      href: "/help" },
+        { label: t("linkGettingStarted"),  href: "/help/getting-started" },
+        { label: t("linkGlossary"),        href: "/glossary" },
+        { label: t("linkChangelog"),       href: "/changelog" },
+        { label: t("linkBeta"),            href: "/beta" },
+      ],
+    },
+    {
+      title: t("colCompany"),
+      links: [
+        { label: t("linkAbout"),           href: "/a-propos" },
+        { label: t("linkContact"),         href: "/contact" },
+        { label: t("linkPress"),           href: "/press" },
+        { label: t("linkPartners"),        href: "/partenaires" },
+      ],
+    },
+    {
+      title: t("colLegal"),
+      links: [
+        { label: t("linkCgu"),             href: "/legal/cgu" },
+        { label: t("linkCgv"),             href: "/legal/cgv" },
+        { label: t("linkPrivacy"),         href: "/legal/privacy" },
+        { label: t("linkCookies"),         href: "/legal/cookies" },
+        { label: t("linkLegalNotice"),     href: "/legal/mentions" },
+      ],
+    },
+  ];
+
+  return (
+    <footer className="mt-16 bg-cream-100 text-forest-900/80">
+      {/* Bloc CTA + colonnes */}
+      <div className="mx-auto max-w-7xl px-5 py-10 sm:px-6 sm:py-14">
+        {/* Brand + newsletter — toujours visible */}
+        <div className="grid gap-10 lg:grid-cols-[1.4fr_repeat(4,1fr)] lg:gap-12">
+          <div>
+            <Logo href={`/${locale}`} variant="wordmark" theme="dark" withTagline />
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-forest-900/70 sm:mt-5">
+              {t("tagline")}
+            </p>
+
+            <form className="mt-5 sm:mt-6">
+              <label htmlFor="footer-email" className="block text-xs font-semibold text-forest-900">
+                {t("newsletterLabel")}
+              </label>
+              <div className="mt-2 flex gap-2">
+                <input
+                  id="footer-email"
+                  type="email"
+                  placeholder="vous@exemple.fr"
+                  className="h-11 flex-1 rounded-lg border border-cream-400 bg-white px-3 text-sm text-forest-900 placeholder-stone-400 focus:border-forest-600 focus:outline-none focus:ring-2 focus:ring-forest-200/40"
+                />
+                <button
+                  type="submit"
+                  className="rounded-lg bg-forest-700 px-4 text-sm font-semibold text-cream-50 transition hover:bg-forest-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-400 focus-visible:ring-offset-2"
+                >
+                  {t("newsletterCta")}
+                </button>
+              </div>
+              <p className="mt-1.5 text-[11px] text-forest-900/55">{t("newsletterNote")}</p>
+            </form>
+          </div>
+
+          {/* Colonnes liens — accordion sur mobile, grille sur lg+ */}
+          {COLUMNS.map(col => (
+            <details
+              key={col.title}
+              className="group border-b border-cream-300 py-3 sm:py-4 lg:border-b-0 lg:py-0"
+              // Auto-open sur desktop via CSS plus bas
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-bold uppercase tracking-wider text-night-800 lg:cursor-default">
+                {col.title}
+                <ChevronDown
+                  className="h-4 w-4 text-stone-500 transition group-open:rotate-180 lg:hidden"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+              </summary>
+              <ul className="mt-3 space-y-2 sm:space-y-2.5 lg:mt-4">
+                {col.links.map(l => (
+                  <li key={l.href}>
+                    <Link
+                      href={`/${locale}${l.href}`}
+                      className="block text-sm text-forest-900/70 transition hover:text-forest-700 hover:underline"
+                    >
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ))}
+        </div>
+      </div>
+
+      {/* Force colonnes ouvertes sur desktop (≥1024px) */}
+      <style>{`@media (min-width: 1024px) { footer details > ul { display: block !important; } footer details[open] > summary span { transform: none; } }`}</style>
+
+      {/* Barre bottom */}
+      <div className="border-t border-cream-300 bg-cream-50">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-4 text-xs text-forest-900/60 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <span>{t("copyright", { year: new Date().getFullYear() })}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <select
+              value={locale}
+              onChange={e => switchLocale(e.target.value)}
+              className="h-9 rounded-lg border border-cream-400 bg-white px-2 text-xs font-medium text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-400"
+              aria-label={t("languageLabel")}
+            >
+              {SUPPORTED_LOCALES.map(l => (
+                <option key={l} value={l}>{LANG_LABELS[l]}</option>
+              ))}
+            </select>
+            <a
+              href="https://www.linkedin.com/company/renocalcpro"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="LinkedIn"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-cream-300 bg-white text-forest-700 transition hover:border-forest-300 hover:bg-cream-100"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+                <path d="M4.98 3.5C4.98 4.88 3.87 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.22 8h4.56v14H.22V8zm7.34 0h4.37v1.91h.06c.61-1.16 2.1-2.39 4.32-2.39 4.62 0 5.47 3.04 5.47 7v7.48h-4.56v-6.63c0-1.58-.03-3.61-2.2-3.61-2.2 0-2.54 1.72-2.54 3.5V22H7.56V8z" />
+              </svg>
+            </a>
+            <a
+              href="https://www.youtube.com/@renocalcpro"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="YouTube"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-cream-300 bg-white text-forest-700 transition hover:border-forest-300 hover:bg-cream-100"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+                <path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 00.5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 002.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 002.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z" />
+              </svg>
+            </a>
+            <a
+              href="mailto:contact@renocalcpro.fr"
+              aria-label="Email"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-cream-300 bg-white text-forest-700 transition hover:border-forest-300 hover:bg-cream-100"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l9 6 9-6M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Maskable : safe zone = cercle inscrit centré, padding 10 % sur chaque côté.
+     Le contenu doit tenir dans un cercle de rayon 0.4 × min(largeur,hauteur). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Réno·Calc Pro">
+  <rect width="512" height="512" fill="#115e59"/>
+  <!-- Toit (centré dans safe zone Ø 410) -->
+  <path d="M170 270 L256 200 L342 270 L342 290 L256 220 L170 290 Z" fill="#fbbf24"/>
+  <!-- Façade -->
+  <rect x="194" y="270" width="124" height="92" rx="4" fill="#fafaf9"/>
+  <rect x="208" y="288" width="34" height="34" rx="2" fill="#115e59"/>
+  <rect x="270" y="288" width="34" height="34" rx="2" fill="#115e59"/>
+  <rect x="240" y="332" width="32" height="30" rx="2" fill="#a16207"/>
+</svg>

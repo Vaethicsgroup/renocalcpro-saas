@@ -1,0 +1,68 @@
+{
+  "legal": {
+    "nav": {
+      "heading": "Legal pages",
+      "ariaLabel": "Legal pages navigation",
+      "warningTitle": "Templates pending legal review",
+      "warningBody": "These documents are generic templates provided for guidance only. They do not constitute legal advice and must be reviewed, adapted and validated by your legal counsel before being published or relied upon.",
+      "items": { "cgu": "Terms of Service", "cgv": "Sales Terms", "privacy": "Privacy (GDPR)", "cookies": "Cookies", "mentions": "Legal notices (FR)" }
+    },
+    "cgu": {
+      "title": "Terms of Service",
+      "lastUpdated": "Last updated: 9 May 2026",
+      "s1": { "title": "1. Purpose", "body": "These Terms of Service govern access to and use of the Réno·Calc Pro online service, edited by VA ETHICS GROUP and accessible at https://renocalcpro.fr. Use of the service implies full acceptance of these terms." },
+      "s2": { "title": "2. Service availability", "body": "The Service is available 24/7 except in case of force majeure, third-party outage, or scheduled maintenance and updates needed for the proper operation of the Service. The User is responsible for the IT and telecom resources required to access the Service." },
+      "s3": { "title": "3. Account creation and management", "body": "The User must provide accurate, up-to-date and complete information. The User is solely responsible for keeping their credentials confidential. The account can be deleted at any time from the personal area; personal data is erased within 30 days, subject to legal retention obligations." },
+      "s4": { "title": "4. Service description", "body": "The Service offers an energy audit calculator compliant with the 3CL-DPE 2021 method, premium PDF report templates, an insulation materials library, predefined renovation scenarios, automatic identification of MaPrimeRénov' and CEE subsidies, and — depending on the plan — team features, white-labeling, API and AI agents.\n\nThe calculations provided are decision-support tools and DO NOT in any case replace a regulatory Energy Performance Diagnosis (DPE), a regulatory energy audit (article L 731-1 CCH), or any RT/RE 2020 thermal study performed by a certified professional." },
+      "s5": { "title": "5. Intellectual property", "body": "All elements of the Service (software, structure, designs, illustrations, photographs, texts, trademarks, logos, sound, animations) are the exclusive property of Réno·Calc Pro or its partners. The User undertakes not to reproduce, copy, sell, resell or exploit any part of the Service for commercial purposes without prior written authorization. Content produced by the User (audit cases, photos, generated PDFs) remains the User's property; the User grants Réno·Calc Pro a non-exclusive license strictly necessary to provide the Service." },
+      "s6": { "title": "6. User obligations", "body": "The User agrees to use the Service in compliance with these terms, applicable laws, public order, and good morals. In particular, it is prohibited to: use the Service for illegal, fraudulent or third-party-rights-infringing purposes; attempt unauthorized access to Réno·Calc Pro systems or other users' accounts; upload or distribute illegal, defamatory, racist, pornographic or human-dignity-infringing content; reproduce or commercially exploit Service elements without authorization; use bots or scrapers outside official public APIs." },
+      "s7": { "title": "7. Liability", "body": "Réno·Calc Pro strives to deliver a quality Service but cannot guarantee 100 % availability, complete absence of bugs, or perfect fitness for a specific User purpose. The calculations and estimates are decision-support tools based on User-supplied data; Réno·Calc Pro shall not be liable for the consequences of using these estimates in works, financing or compliance decisions. In case of proven Service failure, liability shall be limited to the amounts effectively paid by the User over the past 12 months." },
+      "s8": { "title": "8. Suspension and termination", "body": "Réno·Calc Pro may suspend or terminate an account in case of confirmed breach of these terms, after prior notice and reasonable cure period (except for serious breaches justifying immediate suspension). The User may terminate at any time from the personal area; for paid plans termination takes effect at the end of the current billing period." },
+      "s9": { "title": "9. Changes to these terms", "body": "Réno·Calc Pro may amend these terms at any time. Users will be notified of substantive changes by email at least 30 days before they take effect. Continued use after that period constitutes acceptance of the new terms." },
+      "s10": { "title": "10. Governing law and jurisdiction", "body": "These terms are governed by French law. In case of dispute, after attempted amicable resolution, French courts shall have exclusive jurisdiction. Pursuant to article L. 612-1 of the French Consumer Code, consumer Users may resort free of charge to a consumer mediator." }
+    },
+    "cgv": {
+      "title": "Sales Terms",
+      "lastUpdated": "Last updated: 9 May 2026",
+      "s1": { "title": "1. Purpose", "body": "These Sales Terms govern paid subscriptions to the Réno·Calc Pro Service, edited by VA ETHICS GROUP." },
+      "s2": { "title": "2. Plans and pricing", "body": "Available plans, features and prices are described at https://renocalcpro.fr/pricing. Prices are inclusive of all taxes, in euros. Réno·Calc Pro reserves the right to change pricing at any time; new prices apply only to subscriptions taken out after the change." },
+      "s3": { "title": "3. Order and payment", "body": "Subscriptions are purchased online via Stripe (secure payment). Payment is by credit card, SEPA direct debit or any other method offered by Stripe. Subscriptions are monthly or yearly with tacit renewal. The User may cancel at any time from the personal area; cancellation takes effect at the end of the current billing period, with no pro-rata refund except in case of proven Service failure." },
+      "s4": { "title": "4. Service delivery", "body": "Service access is opened immediately upon payment validation. During trial periods, access is opened at account creation." },
+      "s5": { "title": "5. Right of withdrawal", "body": "Pursuant to article L. 221-28 13° of the French Consumer Code, the right of withdrawal does not apply to digital content contracts not supplied on a tangible medium whose execution has begun after the User's express prior agreement. The User expressly waives the right of withdrawal by activating the Service before the end of the 14-day period." },
+      "s6": { "title": "6. Warranty and support", "body": "Réno·Calc Pro undertakes to deliver a quality service consistent with the description on its pricing page. In case of confirmed malfunction attributable to Réno·Calc Pro and significantly impacting Service use, the resolution time is 5 working days from notification. Beyond that, the User may request a credit pro-rated to the downtime." },
+      "s7": { "title": "7. Suspension for non-payment", "body": "In case of payment failure, Réno·Calc Pro retries 3 times over 14 days. Failing regularization, the account is suspended. Beyond 30 days, the account may be terminated by right." },
+      "s8": { "title": "8. Mediation", "body": "Pursuant to article L. 612-1 of the French Consumer Code, consumer Users may resort free of charge to the consumer mediator listed in the Legal notices." }
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "lastUpdated": "Last updated: 9 May 2026 — GDPR compliant (EU Regulation 2016/679)",
+      "s1": { "title": "1. Data controller", "body": "VA ETHICS GROUP, editor of the Réno·Calc Pro Service. Contact: rgpd@renocalcpro.fr" },
+      "s2": { "title": "2. Data Protection Officer (DPO)", "body": "If the organisation exceeds 250 employees or processes sensitive data on a large scale, a DPO will be appointed. Otherwise, GDPR requests should be sent to rgpd@renocalcpro.fr." },
+      "s3": { "title": "3. Data collected", "body": "- Account data: email, name, hashed password (bcrypt), locale, sessions (IP, user-agent)\n- Case data: address, surface area, building photos, income (MaPrimeRénov' bracket)\n- Uploaded photos: images + EXIF metadata (GPS, date, camera)\n- Payment data: email, last 4 card digits, invoices (via Stripe)\n- Technical data: server logs, immutable audit log, anonymous Plausible metrics" },
+      "s4": { "title": "4. Purposes and legal bases", "body": "- Account creation and management: contract performance (art. 6.1.b)\n- Producing energy audits: contract performance\n- Payments: contract performance + accounting obligation (art. 6.1.c)\n- Transactional email: legitimate interest (art. 6.1.f)\n- AI photo analysis: explicit consent (art. 6.1.a) and opt-in\n- Anonymous audience measurement: legitimate interest (cookieless Plausible)\n- Immutable audit log: legal obligation + legitimate security interest" },
+      "s5": { "title": "5. Retention period", "body": "- Active account: until the user deletes it\n- Inactive account: automatic deletion 3 years after last sign-in\n- Audit cases: 5 years after report delivery (article L 731-1 CCH obligation)\n- Photos: 5 years, automatic deletion 1 year after project archival\n- Invoices: 10 years (accounting obligation)\n- Security audit logs: 5 years\n- Operational server logs: 1 year" },
+      "s6": { "title": "6. Recipients", "body": "- Hosting provider: OVH SAS (France) — DPA signed, ISO 27001 / HDS certified\n- Transactional email: Resend GmbH (Germany) — DPA signed\n- Payments: Stripe Payments Europe Ltd (Ireland) — PCI-DSS Level 1\n- AI (opt-in): Anthropic Ireland Ltd — DPA + EU Standard Contractual Clauses\n- Audience measurement: Plausible Insights OÜ (Estonia) — no cookie, no full IP\n- Accountant: invoice transmission only\n\nNo data shared with third parties for advertising purposes." },
+      "s7": { "title": "7. Transfers outside the European Union", "body": "Anthropic may process AI requests in the United States. Legal framework: Standard Contractual Clauses Commission decision 2021/914. Data minimisation (only the opted-in photo). Option to self-host a local LLM for sensitive customers (planned Sprint 7+)." },
+      "s8": { "title": "8. Your rights", "body": "You may exercise the following rights at any time via rgpd@renocalcpro.fr:\n- Access (art. 15): full JSON export within 30 days\n- Rectification (art. 16): self-service via dashboard\n- Erasure / right to be forgotten (art. 17): self-service button + 30-day purge\n- Portability (art. 20): ZIP export of photos + JSON of cases + PDF of reports\n- Objection (art. 21): self-service marketing email opt-out\n- Restriction of processing (art. 18): account suspension on request\n- Lodge a complaint with the CNIL: https://www.cnil.fr/en/plaintes" },
+      "s9": { "title": "9. Data security", "body": "- Mandatory TLS 1.3 (HSTS preload)\n- At-rest encryption for photos (SSE-S3)\n- Daily encrypted backups (GPG AES256), cross-region (RTO 4 h, RPO 24 h)\n- Immutable audit log signed HMAC-SHA256 (Merkle chain)\n- 15-minute magic-link or OAuth authentication, optional TOTP\n- Annual penetration tests (from Q4 2026)\n- Annual security training for the team" },
+      "s10": { "title": "10. Cookies", "body": "See the dedicated Cookie Policy. In short: no advertising cookies, no third-party tracker. NextAuth session cookie (essential) + language cookie. Plausible Analytics works without cookies." },
+      "s11": { "title": "11. Breach notification", "body": "In case of a data breach posing a high risk to individuals, Réno·Calc Pro will notify the CNIL within 72 hours (art. 33 GDPR) and directly inform the affected individuals if necessary (art. 34 GDPR)." },
+      "s12": { "title": "12. Changes to this policy", "body": "This policy may be updated to reflect legal or functional changes. Substantive changes will be notified to affected users by email at least 30 days before they take effect." }
+    },
+    "cookies": {
+      "title": "Cookie Policy",
+      "lastUpdated": "Last updated: 9 May 2026",
+      "s1": { "title": "1. Minimal approach", "body": "Réno·Calc Pro takes a minimal approach to cookies. No advertising cookies, no third-party tracking cookies, no Facebook Pixel or Google Analytics. Our audience-measurement tool (Plausible Analytics) works without cookies and without full IP addresses." },
+      "s2": { "title": "2. Strictly necessary cookies (no consent required)", "body": "The following cookies are essential to the operation of the Service and do not require your prior consent, under the \"strictly necessary\" exemption of the ePrivacy Directive:" },
+      "table": {
+        "title": "List of cookies used",
+        "col1": "Name", "col2": "Purpose", "col3": "Type", "col4": "Duration",
+        "row1Purpose": "NextAuth session authentication", "row1Type": "Essential",
+        "row2Purpose": "CSRF attack protection", "row2Type": "Essential",
+        "row3Purpose": "Remember chosen language", "row3Type": "Preference",
+        "session": "Session", "year": "year"
+      },
+      "s3": { "title": "3. Your choices", "body": "You may at any time configure your browser to block or delete cookies. Caution: blocking essential cookies will make the Service unusable (you won't be able to sign in). To manage your cookies: Chrome — Settings > Privacy and security > Cookies; Firefox — Preferences > Privacy & Security > Cookies; Safari — Preferences > Privacy." }
+    }
+  }
+}
