@@ -23,11 +23,16 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "seed:demo": "DEMO_MODE=true tsx prisma/seed.ts",
+    "seed:demo:only": "tsx prisma/seed-demo.ts",
     "audit:deps": "pnpm audit --audit-level=moderate",
     "audit:secrets": "gitleaks detect --no-banner --redact",
     "audit:sast": "semgrep --config=p/owasp-top-ten --error",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md}\""
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "next": "^15.0.4",
