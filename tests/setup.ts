@@ -1,6 +1,14 @@
 // tests/setup.ts — Setup global Vitest pour SaaS.
 // Mock @/lib/db/client + @/lib/security/auditLog avec un store in-memory.
 
+// ─── Env vars consommées au LOAD-TIME par certains modules ───────────────
+// Doivent être posées AVANT tout `import` qui les lirait au top-level.
+// (En ESM, les imports sont hoistés ; setupFiles sont exécutés avant les tests.)
+process.env.STRIPE_MOCK = process.env.STRIPE_MOCK ?? "true";
+process.env.AUDIT_HMAC_KEY = process.env.AUDIT_HMAC_KEY ?? "test-hmac-not-a-real-secret";
+process.env.FEATURE_AGENTS_ENABLED = process.env.FEATURE_AGENTS_ENABLED ?? "true";
+process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? "sk-test-mock-not-real";
+
 import { vi, beforeEach } from "vitest";
 
 interface SubscriptionRow {
@@ -49,6 +57,24 @@ beforeEach(() => {
   globalStore.orgs.clear();
   globalStore.audit.length = 0;
 });
+
+// ─── Mock @/lib/security/auditLog ────────────────────────────────────────
+// Toutes les routes qui finissent par auditLog({...}) (webhook Stripe, etc.)
+// doivent fonctionner sans toucher Prisma ni la clé HMAC. Le mock pousse les
+// entrées dans `globalStore.audit` pour les assertions éventuelles.
+vi.mock("@/lib/security/auditLog", () => ({
+  auditLog: vi.fn(async (entry: {
+    action: string;
+    payloadJson?: unknown;
+    organizationId?: string | null;
+  }) => {
+    globalStore.audit.push({
+      action: entry.action,
+      payloadJson: entry.payloadJson,
+      organizationId: entry.organizationId ?? null,
+    });
+  }),
+}));
 
 // ─── Mock @/lib/db/client ────────────────────────────────────────────────
 vi.mock("@/lib/db/client", () => ({

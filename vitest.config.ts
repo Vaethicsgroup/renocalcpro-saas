@@ -9,6 +9,10 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@prisma/client": path.resolve(__dirname, "./tests/__mocks__/prisma-client.ts"),
+      // Mirror du path mapping `@renocal/core` dans tsconfig.json — vitest
+      // ne lit pas les paths TS, il faut les redéclarer ici sinon
+      // `projectMaterials` / `agentTools` échouent à charger leur module.
+      "@renocal/core": path.resolve(__dirname, "./src/lib/renocal-core-stub.ts"),
     },
   },
   test: {
