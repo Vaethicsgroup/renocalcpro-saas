@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  # Stubs so Next/Prisma don't fail at build time on missing env vars in CI.
+  # NEVER put real secrets here — use repository secrets and reference them
+  # via ${{ secrets.NAME }} for jobs that genuinely need them (e.g. deploy).
+  DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=public"
+  NEXTAUTH_SECRET: "ci-placeholder-not-a-real-secret"
+  NEXTAUTH_URL: "http://localhost:3000"
+  NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+  AUTH_URL: "http://localhost:3000"
+  AUTH_SECRET: "ci-placeholder-not-a-real-secret"
+  SKIP_ENV_VALIDATION: "1"
+
+jobs:
+  install:
+    name: Install + cache
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+      - run: npm ci --no-audit --no-fund
+
+  lint:
+    name: Lint
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+      - run: npm ci --no-audit --no-fund
+      - name: ESLint
+        # next.config.mjs : `eslint.ignoreDuringBuilds: true` — il y a une dette
+        # de warnings/erreurs lint qu'on tolère le temps de la résorber.
+        # On garde le job visible mais non bloquant.
+        run: npm run lint
+        continue-on-error: true
+
+  typecheck:
+    name: Typecheck
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+      - run: npm ci --no-audit --no-fund
+      - run: npx prisma generate
+      - name: TypeScript noEmit
+        # Dette baseline ~102 erreurs (cf. commit "fix(infra): unblock production
+        # build"). Le build prod ignore via `typescript.ignoreBuildErrors: true`
+        # dans next.config.mjs ; on garde le job visible mais non bloquant le
+        # temps de résorber par lots ciblés.
+        run: npm run typecheck
+        continue-on-error: true
+
+  test:
+    name: Unit tests (vitest)
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+      - run: npm ci --no-audit --no-fund
+      - run: npx prisma generate
+      - name: Run vitest
+        run: npm test -- --run --reporter=default
+        # NOTE: tests currently include known failures (Stripe webhook + 7 files).
+        # Once stabilised, REMOVE the line below to make CI block on test failures.
+        continue-on-error: true
+
+  build:
+    name: Production build
+    needs: [lint, typecheck]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+      - run: npm ci --no-audit --no-fund
+      - run: npx prisma generate
+      - name: Build Next.js
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  audit:
+    name: Dependency + secret audit
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+      - name: npm audit (high+)
+        run: npm audit --audit-level=high || true
+      - name: Gitleaks (secret scan)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
