@@ -1,0 +1,23 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "npx prisma generate && npm run build",
+  "installCommand": "npm ci --no-audit --no-fund",
+  "regions": ["cdg1"],
+  "git": {
+    "deploymentEnabled": {
+      "main": false,
+      "wip/preprod-hardening": true
+    }
+  },
+  "env": {
+    "NEXT_TELEMETRY_DISABLED": "1",
+    "SKIP_ENV_VALIDATION": "1"
+  },
+  "build": {
+    "env": {
+      "NEXT_TELEMETRY_DISABLED": "1",
+      "SKIP_ENV_VALIDATION": "1"
+    }
+  }
+}
