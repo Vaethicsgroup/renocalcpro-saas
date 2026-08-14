@@ -73,8 +73,11 @@ export function applyGuards(input: GuardCheckInput): GuardCheckResult {
   }
 
   // 3. Chiffres "trop précis" non sourcés → suggérer vérification
+  // Seuil à 2 : dès qu'un texte cumule deux chiffres précis (≥5 digits ou
+  // pourcentage à virgule) sans aucune source, on dégrade la confiance —
+  // l'IA invente trop souvent en début/fin de phrase quand on dépasse 2.
   const preciseMatches = input.content.match(PRECISE_NUMBER_RE);
-  if (preciseMatches && preciseMatches.length > 2 && input.sources.length === 0) {
+  if (preciseMatches && preciseMatches.length >= 2 && input.sources.length === 0) {
     triggered.push("precise_numbers_no_source");
     confidence = CONFIDENCE_DOWNGRADE[confidence];
   }

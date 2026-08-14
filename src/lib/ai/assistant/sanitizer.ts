@@ -3,11 +3,18 @@
 // Principe : minimisation des données (RGPD art. 5.1.c).
 
 const EMAIL_RE  = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
-const PHONE_FR  = /\b(?:\+33|0)\s?[1-9](?:[\s.-]?\d{2}){4}\b/g;
+// PHONE_FR : `\b` ne matche pas entre un séparateur et `+` (deux non-word
+// chars). On utilise des lookarounds pour autoriser `+33...` après début
+// de chaîne ou après un séparateur, tout en évitant de couper une séquence
+// chiffrée plus large.
+const PHONE_FR  = /(?<![\d\w])(?:\+33|0)\s?[1-9](?:[\s.-]?\d{2}){4}(?![\d\w])/g;
 const SIRET_RE  = /\b\d{14}\b/g;
 const SIREN_RE  = /\b\d{9}\b/g;
 const RIB_RE    = /\b[A-Z]{2}\d{2}\s?(?:\d{4}\s?){4,7}\d{1,4}\b/g;
-const NIR_RE    = /\b[12]\d{2}(?:0[1-9]|1[0-2])(?:2[ABab]|\d{2})\d{3}\d{3}\d{2}\b/g;
+// NIR : 15 chiffres répartis en sections (gender-YY-MM-dept-town-order-check).
+// Les écritures manuscrites/formulaires intercalent souvent des espaces,
+// notamment avant la clé de contrôle finale ; on les autorise.
+const NIR_RE    = /\b[12]\d{2}\s?(?:0[1-9]|1[0-2])\s?(?:2[ABab]|\d{2})\s?\d{3}\s?\d{3}\s?\d{2}\b/g;
 const PASSWORD_HINT = /\b(?:mot\s*de\s*passe|password|passwd|pwd)\s*[:=]\s*\S+/gi;
 
 export interface SanitizeOptions {
@@ -60,6 +67,9 @@ const SENSITIVE_KEYS = new Set([
   "password","passwd","pwd","secret","token","apiKey","api_key","authorization",
   "bearer","jwt","sessionId","session_id","cookie","refreshToken","refresh_token",
   "iban","rib","ssn","nir","siret","siren",
+  // PII directes : un payload qui contient explicitement un champ `email` ou
+  // `phone` ne doit pas le faire transiter en clair vers le LLM.
+  "email","mail","e-mail","phone","tel","telephone","mobile",
 ]);
 
 export function sanitizeObject<T = unknown>(input: T, opts: SanitizeOptions = {}): T {
