@@ -17,7 +17,11 @@ export default async function PublicLayout({ children, params }: Props) {
       <SoftwareApplicationJsonLd />
       <WebSiteJsonLd />
       <HeaderPremium locale={locale} />
-      <main>{children}</main>
+      {/* Chrome auto-translate désactivé sur tout le site public (contenu FR/EN
+          servi via next-intl, pas de double traduction browser). */}
+      <main lang={locale === "en" ? "en" : "fr"} translate="no" className="notranslate">
+        {children}
+      </main>
       <FooterPremium locale={locale} />
       <SegmentSuggestion locale={locale} />
       <CookieConsent />
