@@ -1,0 +1,31 @@
+# CODEOWNERS for renocalcpro-saas
+#
+# Every PR touching paths below auto-requests review from the listed owners.
+# Use GitHub teams (@org/team) or usernames (@user). Patterns follow gitignore syntax.
+# Last matching rule wins, so put broad rules first and narrow overrides last.
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+*                                @alexvgrady-glitch
+
+# Infrastructure & deploy
+/.github/                        @alexvgrady-glitch
+/Dockerfile                      @alexvgrady-glitch
+/.dockerignore                   @alexvgrady-glitch
+/docs/DEPLOY-*                   @alexvgrady-glitch
+/docs/RUNBOOK.md                 @alexvgrady-glitch
+
+# Database — schema + migrations
+/prisma/                         @alexvgrady-glitch
+
+# Auth
+/src/auth*                       @alexvgrady-glitch
+/src/lib/auth*                   @alexvgrady-glitch
+
+# Payments (Stripe)
+/src/app/api/webhooks/stripe/    @alexvgrady-glitch
+/src/lib/stripe*                 @alexvgrady-glitch
+
+# Security-sensitive
+/src/app/api/cron/               @alexvgrady-glitch
+/src/lib/ai/                     @alexvgrady-glitch

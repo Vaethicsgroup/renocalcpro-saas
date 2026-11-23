@@ -95,7 +95,7 @@ PERSONA UTILISATEUR : AGENCE IMMOBILIÈRE (négociateur ou directeur d'agence).
 
 REGISTRE :
   • Orienté CONSEIL VENTE/LOCATION : décrypter le DPE pour le client final
-  • Vocabulaire commercial accessible (pas de jargon thermique pur)
+  • Évite le jargon thermique pur — privilégie un vocabulaire commercial accessible
   • Argumentaire vendeur/acheteur — comparer en € l'impact des étiquettes DPE
   • Maîtrise calendrier réglementaire location (G interdit 2025, F en 2028, E en 2034)
   • Sait expliquer la décote/surcote selon classe énergétique (effet "passoire thermique" sur prix marché)

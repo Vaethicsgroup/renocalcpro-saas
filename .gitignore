@@ -57,3 +57,36 @@ tmp/
 
 # ─── Builds annexes Claude / sandbox ───────────────────────────────────
 tsconfig.usage.json
+
+# ─── Scratch / outils locaux (à NE PAS commiter) ───────────────────────
+# Scripts shell de diagnostic / audit / validation lancés depuis le Bureau.
+# Ils sont utiles localement mais polluent l'historique. Les sortir de Git
+# n'efface PAS les copies déjà commitées — il faudra faire un `git rm --cached`
+# dédié pour les retirer du tracking sans les supprimer du disque.
+_audit-*.command
+_audit-*.log
+_validate-*.command
+_validate-*.log
+_diagnose-*.command
+_diagnose-*.log
+_probe-*.command
+_probe-*.log
+_restart-*.command
+_restart-*.log
+_backup-*.command
+_freemium-*.command
+_start-*.command
+_start-*.log
+_install-*.command
+_install-*.log
+_cloudflared*.log
+_cloudflared-url.txt
+_ngrok*.log
+_ngrok-url.txt
+_bin/cloudflared
+
+# ─── Backups locaux (snapshots datés du Bureau) ────────────────────────
+backups/
+
+# ─── Logs de scripts maison ────────────────────────────────────────────
+/tmp/renocalcpro-*.log

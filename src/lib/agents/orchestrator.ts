@@ -28,7 +28,12 @@ const MODELS = {
   classify: process.env.ANTHROPIC_MODEL_CLASSIFY || "claude-haiku-4-5-20251001",
 };
 
-const FEATURE_ENABLED = process.env.FEATURE_AGENTS_ENABLED === "true";
+// Lecture au CALL-TIME (et non au module-load) pour que les tests qui togglent
+// l'env var et les déploiements qui hot-reloadent la conf prennent effet sans
+// redémarrage du process.
+function isFeatureEnabled(): boolean {
+  return process.env.FEATURE_AGENTS_ENABLED === "true";
+}
 
 interface OrchestrateInput {
   projectId: string;
@@ -43,7 +48,7 @@ interface OrchestrateInput {
 }
 
 export async function orchestrate(input: OrchestrateInput): Promise<OrchestrationResult> {
-  if (!FEATURE_ENABLED) {
+  if (!isFeatureEnabled()) {
     throw new Error("Feature `agents` désactivée (FEATURE_AGENTS_ENABLED=false)");
   }
 

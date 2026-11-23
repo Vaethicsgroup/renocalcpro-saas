@@ -1,0 +1,77 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    versioning-strategy: increase-if-necessary
+    labels:
+      - dependencies
+      - automerge-candidate
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      next-stack:
+        patterns:
+          - "next"
+          - "next-*"
+          - "@next/*"
+          - "react"
+          - "react-dom"
+          - "@types/react*"
+      prisma:
+        patterns:
+          - "prisma"
+          - "@prisma/*"
+      auth:
+        patterns:
+          - "next-auth"
+          - "@auth/*"
+      stripe:
+        patterns:
+          - "stripe"
+          - "@stripe/*"
+      sentry:
+        patterns:
+          - "@sentry/*"
+      aws:
+        patterns:
+          - "@aws-sdk/*"
+      testing:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "@testing-library/*"
+          - "playwright"
+          - "@playwright/*"
+      lint-format:
+        patterns:
+          - "eslint*"
+          - "@typescript-eslint/*"
+          - "prettier"
+          - "@types/*"
+    ignore:
+      # Hold on majors for risky packages — review manually.
+      - dependency-name: "next-auth"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "stripe"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: "chore(ci)"

@@ -7,6 +7,14 @@ process.env.STRIPE_MOCK = "true";
 delete process.env.STRIPE_SECRET_KEY;
 delete process.env.STRIPE_WEBHOOK_SECRET;
 
+// auditLog : vi.mock dans `setupFiles` n'est pas systématiquement hoisté
+// avant les imports d'un fichier de test (limitation vitest connue). On
+// duplique localement le mock pour garantir que la route le voie au load.
+vi.mock("@/lib/security/auditLog", () => ({
+  auditLog: vi.fn(),
+  logAudit: vi.fn(),
+}));
+
 import { POST } from "@/app/api/webhooks/stripe/route";
 import { seedSubscription, getStore } from "./setup";
 

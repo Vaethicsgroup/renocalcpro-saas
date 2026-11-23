@@ -1,7 +1,10 @@
 // tests/suggestPlan.test.ts — 7 segments × 3 volumes = 21 cas + edge cases.
 
 import { describe, it, expect } from "vitest";
-import { suggestPlan } from "@/server/actions/onboarding";
+// v2.5+ : suggestPlan a été extrait vers @/lib/onboarding/suggest-plan
+// (les fichiers "use server" ne peuvent exporter que des async functions,
+//  cf. note dans src/server/actions/onboarding.ts).
+import { suggestPlan } from "@/lib/onboarding/suggest-plan";
 import type { ClientType } from "@prisma/client";
 
 const PRO_TYPES: Exclude<ClientType, "INDIVIDUAL">[] = [

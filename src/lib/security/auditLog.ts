@@ -29,6 +29,12 @@ interface AuditEntry {
   payloadJson?: Record<string, unknown>;
 }
 
+/**
+ * Helper d'écriture d'une entrée d'audit immuable (HMAC-SHA256 chaînée).
+ * Historiquement nommé `logAudit` mais consommé sous le nom `auditLog`
+ * (cf. `src/app/api/webhooks/stripe/route.ts`). Pour rester compatible,
+ * on exporte le même symbole sous les deux noms.
+ */
 export async function logAudit(entry: AuditEntry): Promise<void> {
   // 1. Récupère la ligne précédente liée au même resource (chaîne)
   let prevHmac: string | null = null;
@@ -112,3 +118,9 @@ export async function verifyAuditChain(
   }
   return { ok: true, checked: rows.length };
 }
+
+// ─── Alias historique ───────────────────────────────────────────────────
+// La route Stripe webhook (et potentiellement d'autres consommateurs) importe
+// la fonction sous le nom `auditLog`. Garder cet alias évite un bug à l'exécution
+// (`auditLog is not a function`) si le renommage n'a pas été propagé partout.
+export const auditLog = logAudit;
