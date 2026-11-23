@@ -52,7 +52,7 @@ export function MarketingCompositionV5({
       {/* Zone device — hauteur fixée pour garantir que les overlaps restent
           contenus et ne chevauchent pas les cartes du bas. */}
       <div className="flex flex-col gap-10">
-        <div className="relative h-[960px]">
+        <div className="relative h-[1100px]">
           {/* Laptop central (dashboard) */}
           <LaptopFrame className="relative z-10 mx-auto w-[900px]">
             <DashboardMockup data={dashboard} />
