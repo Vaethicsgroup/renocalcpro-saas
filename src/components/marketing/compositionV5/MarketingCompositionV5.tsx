@@ -49,42 +49,45 @@ export function MarketingCompositionV5({
         <BrandColumn brand={brand} />
       </div>
 
-      {/* Scène device */}
-      <div className="relative min-h-[1180px]">
-        {/* Laptop central (dashboard) */}
-        <LaptopFrame className="relative z-10 mx-auto w-[900px]">
-          <DashboardMockup data={dashboard} />
-        </LaptopFrame>
+      {/* Zone device — hauteur fixée pour garantir que les overlaps restent
+          contenus et ne chevauchent pas les cartes du bas. */}
+      <div className="flex flex-col gap-10">
+        <div className="relative h-[960px]">
+          {/* Laptop central (dashboard) */}
+          <LaptopFrame className="relative z-10 mx-auto w-[900px]">
+            <DashboardMockup data={dashboard} />
+          </LaptopFrame>
 
-        {/* Tablet 1 — Create project, top-right overlap */}
-        <TabletFrame
-          className="absolute right-[-40px] top-[-20px] z-20 w-[340px] rotate-[3deg]"
-        >
-          <CreateProjectMockup buildingTypes={buildingTypes} />
-        </TabletFrame>
+          {/* Tablet 1 — Create project, top-right overlap */}
+          <TabletFrame
+            className="absolute right-[-40px] top-[-20px] z-20 w-[340px] rotate-[3deg]"
+          >
+            <CreateProjectMockup buildingTypes={buildingTypes} />
+          </TabletFrame>
 
-        {/* Tablet 2 — Parameters, bottom-left overlap */}
-        <TabletFrame
-          className="absolute left-[-30px] top-[480px] z-20 w-[380px] -rotate-[2deg]"
-        >
-          <ParametersMockup
-            stepper={parameters.stepper}
-            paramNav={parameters.paramNav}
-            formValues={parameters.formValues}
-            projectReference={parameters.projectReference}
-            materialImageSrc={parameters.materialImageSrc}
-          />
-        </TabletFrame>
+          {/* Tablet 2 — Parameters, bottom-left overlap */}
+          <TabletFrame
+            className="absolute left-[-30px] top-[480px] z-20 w-[380px] -rotate-[2deg]"
+          >
+            <ParametersMockup
+              stepper={parameters.stepper}
+              paramNav={parameters.paramNav}
+              formValues={parameters.formValues}
+              projectReference={parameters.projectReference}
+              materialImageSrc={parameters.materialImageSrc}
+            />
+          </TabletFrame>
 
-        {/* Phone — bottom-right overlap (contained dans la scène device) */}
-        <PhoneFrame className="absolute right-[40px] top-[380px] z-30 w-[220px]" rotate={-4}>
-          <div style={{ height: "440px" }}>
-            <MobileDashboardMockup data={mobile} />
-          </div>
-        </PhoneFrame>
+          {/* Phone — bottom-right overlap */}
+          <PhoneFrame className="absolute right-[20px] top-[420px] z-30 w-[200px]" rotate={-4}>
+            <div style={{ height: "400px" }}>
+              <MobileDashboardMockup data={mobile} />
+            </div>
+          </PhoneFrame>
+        </div>
 
-        {/* Ligne du bas — cartes synthèses (placées sous toute la scène device) */}
-        <div className="relative z-10 mt-[200px] grid grid-cols-[1.4fr_1fr] gap-6">
+        {/* Ligne du bas — cartes synthèses, hors zone absolue */}
+        <div className="relative z-10 grid grid-cols-[1.4fr_1fr] gap-6">
           <ScenariosCardMockup scenarios={scenarios} />
           <ReportCardMockup report={report} />
         </div>
