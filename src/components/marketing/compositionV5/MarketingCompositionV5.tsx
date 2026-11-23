@@ -67,7 +67,7 @@ export function MarketingCompositionV5({
 
           {/* Tablet 2 — Parameters, bottom-left overlap */}
           <TabletFrame
-            className="absolute left-[-30px] top-[480px] z-20 w-[380px] -rotate-[2deg]"
+            className="absolute left-[-30px] top-[380px] z-20 w-[380px] -rotate-[2deg]"
           >
             <ParametersMockup
               stepper={parameters.stepper}
