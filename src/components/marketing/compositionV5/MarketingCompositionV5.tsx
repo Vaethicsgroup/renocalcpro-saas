@@ -35,8 +35,10 @@ export function MarketingCompositionV5({
 }: MarketingCompositionProps & { className?: string }) {
   return (
     <section
+      lang="fr"
+      translate="no"
       className={cn(
-        "relative mx-auto grid max-w-[1480px] grid-cols-[440px_1fr] gap-16 px-10 py-16",
+        "relative mx-auto grid max-w-[1480px] grid-cols-[440px_1fr] gap-16 px-10 py-16 notranslate",
         // Fond doux cream pour laisser le design respirer
         "bg-gradient-to-br from-cream-50 via-cream-50 to-cream-100",
         className,
@@ -48,7 +50,7 @@ export function MarketingCompositionV5({
       </div>
 
       {/* Scène device */}
-      <div className="relative min-h-[1000px]">
+      <div className="relative min-h-[1180px]">
         {/* Laptop central (dashboard) */}
         <LaptopFrame className="relative z-10 mx-auto w-[900px]">
           <DashboardMockup data={dashboard} />
@@ -74,15 +76,15 @@ export function MarketingCompositionV5({
           />
         </TabletFrame>
 
-        {/* Phone — bottom-right overlap */}
-        <PhoneFrame className="absolute right-[40px] top-[420px] z-30 w-[220px]" rotate={-4}>
+        {/* Phone — bottom-right overlap (contained dans la scène device) */}
+        <PhoneFrame className="absolute right-[40px] top-[380px] z-30 w-[220px]" rotate={-4}>
           <div style={{ height: "440px" }}>
             <MobileDashboardMockup data={mobile} />
           </div>
         </PhoneFrame>
 
-        {/* Ligne du bas — cartes synthèses */}
-        <div className="relative z-10 mt-14 grid grid-cols-[1.4fr_1fr] gap-6">
+        {/* Ligne du bas — cartes synthèses (placées sous toute la scène device) */}
+        <div className="relative z-10 mt-[200px] grid grid-cols-[1.4fr_1fr] gap-6">
           <ScenariosCardMockup scenarios={scenarios} />
           <ReportCardMockup report={report} />
         </div>
