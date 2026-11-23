@@ -12,19 +12,20 @@ interface Props { children: ReactNode; params: Promise<{ locale: string }> }
 export default async function PublicLayout({ children, params }: Props) {
   const { locale } = await params;
   return (
-    <>
+    // `translate="no"` + `notranslate` au niveau le plus haut possible pour
+    // couper Chrome auto-translate sur le header, le main et le footer. Le
+    // contenu FR/EN est servi par next-intl, pas besoin d'une double traduction
+    // navigateur qui casse la marque ("RENOCALCPRO" → "RENO CALC PRO") et les
+    // libellés FR ("Vue d'ensemble" → "Overview").
+    <div lang={locale === "en" ? "en" : "fr"} translate="no" className="notranslate">
       <OrganizationJsonLd />
       <SoftwareApplicationJsonLd />
       <WebSiteJsonLd />
       <HeaderPremium locale={locale} />
-      {/* Chrome auto-translate désactivé sur tout le site public (contenu FR/EN
-          servi via next-intl, pas de double traduction browser). */}
-      <main lang={locale === "en" ? "en" : "fr"} translate="no" className="notranslate">
-        {children}
-      </main>
+      <main>{children}</main>
       <FooterPremium locale={locale} />
       <SegmentSuggestion locale={locale} />
       <CookieConsent />
-    </>
+    </div>
   );
 }
