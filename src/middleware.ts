@@ -52,6 +52,7 @@ const PUBLIC_PATHS = [
   "/copropriete",
   "/particuliers",
   "/professionnels",
+  "/presentation",
   "/api-docs",
   // Légal
   "/legal",
